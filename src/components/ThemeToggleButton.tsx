@@ -9,10 +9,10 @@ export function ThemeToggleButton({ onToggle, currentTheme }: ThemeToggleButtonP
     <button
       onClick={onToggle}
       className="fixed bottom-8 right-8 btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-shadow"
-      title={`Switch to ${currentTheme === 'silk' ? 'sunset' : 'silk'} theme`}
+      title={`Switch to ${currentTheme === 'cmyk' ? 'forest' : 'cmyk'} theme`}
       aria-label="Toggle theme"
     >
-      {currentTheme === 'silk' ? '🌅' : '☀️'}
+      {currentTheme === 'cmyk' ? '🌙' : '🌳'}
     </button>
   )
 }
