@@ -1,8 +1,9 @@
 // Main layout with sidebar and theme toggle
 import { useState, useEffect } from 'react'
-import { Sidebar } from './Sidebar'
-import { ThemeToggleButton } from './ThemeToggleButton'
-import { AuditDashboard } from './AuditDashboard'
+import { Sidebar } from '../components/Sidebar'
+import { ThemeToggleButton } from '../components/ThemeToggleButton'
+import { Dashboard } from '../pages/Dashboard'
+import { Reports } from '../pages/Reports'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/sidebar.css'
 
@@ -27,18 +28,9 @@ export function MainLayout() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <AuditDashboard />
+        return <Dashboard />
       case 'reports':
-        return (
-          <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
-            <div className="max-w-7xl mx-auto">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content">Reports</h1>
-              <p className="text-base-content/60 mt-2 text-sm sm:text-base">
-                Reports page coming soon...
-              </p>
-            </div>
-          </div>
-        )
+        return <Reports />
       case 'settings':
         return (
           <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
@@ -51,7 +43,7 @@ export function MainLayout() {
           </div>
         )
       default:
-        return <AuditDashboard />
+        return <Dashboard />
     }
   }
 

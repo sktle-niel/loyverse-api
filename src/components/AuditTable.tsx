@@ -66,27 +66,28 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
   })
 
   return (
-    <div className="card bg-base-100 shadow border border-base-200 overflow-x-auto">
-      <div className="w-full overflow-x-auto">
-        <table className="table text-xs sm:text-sm">
+    <div className="card bg-base-100 shadow border border-base-200">
+      {/* Desktop Table */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="table text-sm">
           <thead className="bg-base-200">
             <tr className="border-b border-base-300">
               <th className="text-base-content font-semibold">Item</th>
-              <th className="text-base-content font-semibold hidden sm:table-cell">Old Stock</th>
+              <th className="text-base-content font-semibold">Old Stock</th>
               <th className="text-base-content font-semibold">New Stock</th>
               <th className="text-base-content font-semibold">Change</th>
-              <th className="text-base-content font-semibold hidden lg:table-cell">Timestamp</th>
+              <th className="text-base-content font-semibold">Timestamp</th>
             </tr>
           </thead>
           <tbody>
             {paginatedRecords.map((record) => (
               <tr key={record.id} className="border-b border-base-200 hover:bg-base-200/30 transition-colors">
-                <td className="text-base-content font-medium text-xs sm:text-sm">{record.itemName}</td>
-                <td className="text-base-content/70 hidden sm:table-cell">{record.oldStock}</td>
+                <td className="text-base-content font-medium">{record.itemName}</td>
+                <td className="text-base-content/70">{record.oldStock}</td>
                 <td className="text-base-content/70">{record.newStock}</td>
                 <td>
                   <div
-                    className={`font-semibold text-xs sm:text-sm ${
+                    className={`font-semibold ${
                       record.changeAmount < 0
                         ? 'text-error'
                         : 'text-success'
@@ -95,13 +96,40 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
                     {record.changeAmount > 0 ? '+' : ''}{record.changeAmount}
                   </div>
                 </td>
-                <td className="text-base-content/60 text-xs hidden lg:table-cell">
+                <td className="text-base-content/60 text-sm">
                   {new Date(record.timestamp).toLocaleString()}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile List View */}
+      <div className="sm:hidden divide-y divide-base-200">
+        {paginatedRecords.map((record) => (
+          <div key={record.id} className="p-3 space-y-2">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="font-medium text-base-content text-sm">{record.itemName}</p>
+                <p className="text-xs text-base-content/60">by {record.adminName}</p>
+              </div>
+              <div
+                className={`font-semibold text-sm ${
+                  record.changeAmount < 0
+                    ? 'text-error'
+                    : 'text-success'
+                }`}
+              >
+                {record.changeAmount > 0 ? '+' : ''}{record.changeAmount}
+              </div>
+            </div>
+            <div className="flex justify-between text-xs text-base-content/60">
+              <span>{record.oldStock} → {record.newStock}</span>
+              <span>{new Date(record.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Pagination Controls */}
