@@ -3,13 +3,12 @@ import type { AuditRecord } from '../components/AuditTable'
 
 interface UseAuditFiltersReturn {
   filteredRecords: AuditRecord[]
-  selectedAdmin: string
+  searchTerm: string
   selectedItem: string
   dateFrom: string
   dateTo: string
-  admins: string[]
   items: string[]
-  onAdminChange: (admin: string) => void
+  onSearchChange: (search: string) => void
   onItemChange: (item: string) => void
   onDateFromChange: (date: string) => void
   onDateToChange: (date: string) => void
@@ -19,19 +18,21 @@ interface UseAuditFiltersReturn {
 export function useAuditFilters(
   records: AuditRecord[],
 ): UseAuditFiltersReturn {
-  const [selectedAdmin, setSelectedAdmin] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedItem, setSelectedItem] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
-  // Extract unique admins and items from records
-  const admins = Array.from(new Set(records.map((r) => r.adminName)))
+  // Extract unique items from records
   const items = Array.from(new Set(records.map((r) => r.itemName)))
 
   // Filter records based on selected filters
   const filteredRecords = records.filter((record) => {
-    const adminMatch =
-      !selectedAdmin || record.adminName === selectedAdmin
+    const searchMatch =
+      !searchTerm ||
+      record.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.adminName.toLowerCase().includes(searchTerm.toLowerCase())
+    
     const itemMatch =
       !selectedItem || record.itemName === selectedItem
 
@@ -48,11 +49,11 @@ export function useAuditFilters(
       dateMatch = dateMatch && recordDate <= toDate
     }
 
-    return adminMatch && itemMatch && dateMatch
+    return searchMatch && itemMatch && dateMatch
   })
 
   const handleClearFilters = () => {
-    setSelectedAdmin('')
+    setSearchTerm('')
     setSelectedItem('')
     setDateFrom('')
     setDateTo('')
@@ -60,13 +61,12 @@ export function useAuditFilters(
 
   return {
     filteredRecords,
-    selectedAdmin,
+    searchTerm,
     selectedItem,
     dateFrom,
     dateTo,
-    admins,
     items,
-    onAdminChange: setSelectedAdmin,
+    onSearchChange: setSearchTerm,
     onItemChange: setSelectedItem,
     onDateFromChange: setDateFrom,
     onDateToChange: setDateTo,

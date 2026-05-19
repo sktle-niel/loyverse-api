@@ -87,13 +87,12 @@ export function AuditDashboard() {
 
   const {
     filteredRecords,
-    selectedAdmin,
+    searchTerm,
     selectedItem,
     dateFrom,
     dateTo,
-    admins,
     items,
-    onAdminChange,
+    onSearchChange,
     onItemChange,
     onDateFromChange,
     onDateToChange,
@@ -101,30 +100,29 @@ export function AuditDashboard() {
   } = useAuditFilters(auditRecords)
 
   return (
-    <div className="min-h-screen bg-base-200 p-4 md:p-8">
+    <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-base-content mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content mb-2">
             Audit Trail
           </h1>
-          <p className="text-base-content/60">
+          <p className="text-base-content/60 text-sm sm:text-base">
             Monitor stock changes made by admins
           </p>
         </div>
 
         {/* Filters */}
         <AuditFilters
-          selectedAdmin={selectedAdmin}
+          searchTerm={searchTerm}
           selectedItem={selectedItem}
           dateFrom={dateFrom}
           dateTo={dateTo}
-          onAdminChange={onAdminChange}
+          onSearchChange={onSearchChange}
           onItemChange={onItemChange}
           onDateFromChange={onDateFromChange}
           onDateToChange={onDateToChange}
           onClearFilters={onClearFilters}
-          admins={admins}
           items={items}
         />
 

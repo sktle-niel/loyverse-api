@@ -1,27 +1,38 @@
-/* Sidebar custom styles - Minimal Design */
+/* Sidebar custom styles - Minimal Design with Responsive Layout */
 
 .sidebar-container {
-  position: fixed;
-  left: 0;
-  top: 0;
-  height: 100vh;
-  width: 16rem;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 40;
-  
-  /* Clean minimal design */
   background: rgba(var(--color-base-100) / 0.7);
   backdrop-filter: blur(8px);
   border-right: 1px solid rgba(var(--color-base-content) / 0.08);
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 16rem;
+  z-index: 40;
 }
 
-@media (max-width: 768px) {
+/* Desktop styles - Fixed sidebar on left */
+@media (min-width: 1024px) {
   .sidebar-container {
-    width: 100%;
+    right: auto;
+    left: 0;
   }
 }
+
+/* Mobile/Tablet styles - Full height sidebar slides from right */
+@media (max-width: 1023px) {
+  .sidebar-container {
+    width: 100%;
+    max-width: 16rem;
+    height: 100vh;
+  }
+}
+
+
 
 
