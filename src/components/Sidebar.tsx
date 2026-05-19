@@ -1,7 +1,8 @@
 // Sidebar navigation component
 interface SidebarProps {
   currentPage: string
-  onPageChange: (page: string) => void
+  onPageChange: () => void
+  onPageChangeCallback: (page: string) => void
 }
 
 const DashboardIcon = () => (
@@ -24,45 +25,50 @@ const SettingsIcon = () => (
   </svg>
 )
 
-export function Sidebar({ currentPage, onPageChange }: SidebarProps) {
+export function Sidebar({ currentPage, onPageChange, onPageChangeCallback }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 
+  const handleMenuClick = (id: string) => {
+    onPageChangeCallback(id)
+    onPageChange()
+  }
+
   return (
-    <div className="sidebar-container">
+    <div className="sidebar-container h-full">
       {/* Header */}
-      <div className="px-6 py-8 border-b border-base-content/10">
-        <h2 className="text-lg font-semibold text-base-content">Two Wheels Zone</h2>
+      <div className="px-4 sm:px-6 py-6 sm:py-8 border-b border-base-content/10">
+        <h2 className="text-base sm:text-lg font-semibold text-base-content">Two Wheels Zone</h2>
         <p className="text-xs text-base-content/50 mt-2">Audit System</p>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-6 px-3 space-y-2">
+      {/* Navigation - scrollable content area */}
+      <nav className="flex-1 overflow-y-auto py-6 px-2 sm:px-3 space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon
           return (
             <button
               key={item.id}
-              onClick={() => onPageChange(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              onClick={() => handleMenuClick(item.id)}
+              className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-200 ${
                 currentPage === item.id
                   ? 'bg-primary/15 text-primary font-medium'
                   : 'text-base-content/70 hover:text-base-content hover:bg-base-200/30'
               }`}
             >
               <Icon />
-              <span className="text-sm">{item.label}</span>
+              <span className="text-xs sm:text-sm">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
       {/* Footer Info */}
-      <div className="px-4 py-6 border-t border-base-content/10">
-        <div className="px-3 py-3 bg-base-200/20 rounded-lg border border-base-content/10">
+      <div className="px-2 sm:px-4 py-4 sm:py-6 border-t border-base-content/10">
+        <div className="px-2 sm:px-3 py-2 sm:py-3 bg-base-200/20 rounded-lg border border-base-content/10">
           <p className="text-xs font-medium text-base-content mb-1">
             ✓ Loyverse Connected
           </p>

@@ -1,66 +1,59 @@
 // Audit trail filter component
 interface AuditFiltersProps {
-  selectedAdmin: string
+  searchTerm: string
   selectedItem: string
   dateFrom: string
   dateTo: string
-  onAdminChange: (admin: string) => void
+  onSearchChange: (search: string) => void
   onItemChange: (item: string) => void
   onDateFromChange: (date: string) => void
   onDateToChange: (date: string) => void
   onClearFilters: () => void
-  admins: string[]
   items: string[]
 }
 
 export function AuditFilters({
-  selectedAdmin,
+  searchTerm,
   selectedItem,
   dateFrom,
   dateTo,
-  onAdminChange,
+  onSearchChange,
   onItemChange,
   onDateFromChange,
   onDateToChange,
   onClearFilters,
-  admins,
   items,
 }: AuditFiltersProps) {
   return (
     <div className="card bg-base-100 shadow border border-base-200 mb-6">
       <div className="card-body">
-        <h3 className="card-title text-lg text-base-content mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Admin Filter */}
+        <h3 className="card-title text-base sm:text-lg text-base-content mb-4">Filters</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Search Filter */}
           <div className="form-control">
-            <label className="label">
-              <span className="label-text font-semibold text-base-content">
-                Admin
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
+                Search
               </span>
             </label>
-            <select
-              className="select select-bordered w-full focus:select-primary"
-              value={selectedAdmin}
-              onChange={(e) => onAdminChange(e.target.value)}
-            >
-              <option value="">All Admins</option>
-              {admins.map((admin) => (
-                <option key={admin} value={admin}>
-                  {admin}
-                </option>
-              ))}
-            </select>
+            <input
+              type="text"
+              placeholder="Item or admin name..."
+              className="input input-bordered w-full focus:input-primary text-sm"
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
           </div>
 
           {/* Item Filter */}
           <div className="form-control">
-            <label className="label">
-              <span className="label-text font-semibold text-base-content">
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
                 Item
               </span>
             </label>
             <select
-              className="select select-bordered w-full focus:select-primary"
+              className="select select-bordered w-full focus:select-primary text-sm"
               value={selectedItem}
               onChange={(e) => onItemChange(e.target.value)}
             >
@@ -75,14 +68,14 @@ export function AuditFilters({
 
           {/* Date From Filter */}
           <div className="form-control">
-            <label className="label">
-              <span className="label-text font-semibold text-base-content">
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
                 From
               </span>
             </label>
             <input
               type="date"
-              className="input input-bordered w-full focus:input-primary"
+              className="input input-bordered w-full focus:input-primary text-sm"
               value={dateFrom}
               onChange={(e) => onDateFromChange(e.target.value)}
             />
@@ -90,14 +83,14 @@ export function AuditFilters({
 
           {/* Date To Filter */}
           <div className="form-control">
-            <label className="label">
-              <span className="label-text font-semibold text-base-content">
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
                 To
               </span>
             </label>
             <input
               type="date"
-              className="input input-bordered w-full focus:input-primary"
+              className="input input-bordered w-full focus:input-primary text-sm"
               value={dateTo}
               onChange={(e) => onDateToChange(e.target.value)}
             />
@@ -107,7 +100,7 @@ export function AuditFilters({
         {/* Clear Filters Button */}
         <div className="card-actions justify-end mt-4">
           <button
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-sm text-xs sm:text-sm"
             onClick={onClearFilters}
           >
             Clear Filters
