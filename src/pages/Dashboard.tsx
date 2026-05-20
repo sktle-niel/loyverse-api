@@ -78,6 +78,42 @@ export const MOCK_AUDIT_RECORDS: AuditRecord[] = [
     changeAmount: -2,
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
   },
+  {
+    id: '9',
+    itemName: 'Radiator Coolant',
+    adminName: 'Maria Santos',
+    oldStock: 5,
+    newStock: 2,
+    changeAmount: -3,
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString(),
+  },
+  {
+    id: '10',
+    itemName: 'Power Steering Fluid',
+    adminName: 'Juan Dela Cruz',
+    oldStock: 3,
+    newStock: 1,
+    changeAmount: -2,
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+  },
+  {
+    id: '11',
+    itemName: 'Windshield Wipers',
+    adminName: 'Rosa Garcia',
+    oldStock: 2,
+    newStock: 0,
+    changeAmount: -2,
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8).toISOString(),
+  },
+  {
+    id: '12',
+    itemName: 'Motor Coolant Additive',
+    adminName: 'Maria Santos',
+    oldStock: 1,
+    newStock: 0,
+    changeAmount: -1,
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 9).toISOString(),
+  },
 ]
 
 export function Dashboard() {
@@ -85,7 +121,7 @@ export function Dashboard() {
   const [isLoading] = useState(false)
 
   const {
-    filteredRecords,
+    filteredRecords: searchFilteredRecords,
     searchTerm,
     selectedItem,
     dateFrom,
@@ -126,7 +162,7 @@ export function Dashboard() {
         />
 
         {/* Audit Table */}
-        <AuditTable records={filteredRecords} isLoading={isLoading} />
+        <AuditTable records={searchFilteredRecords} isLoading={isLoading} />
       </div>
     </div>
   )

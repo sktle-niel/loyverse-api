@@ -1,0 +1,18 @@
+---
+description: Two Wheels Zone / Loyverse audit app — core context and conventions
+alwaysApply: true
+---
+
+# Loyverse API (Two Wheels Zone)
+
+Read **AGENTS.md** at repo root for full architecture, file map, and task routing.
+
+## Quick facts
+
+- React + TS + Vite + Tailwind 4 + DaisyUI. **No React Router** — pages via `MainLayout` state (`dashboard` | `reports` | `settings`).
+- **Mock data only** — `MOCK_AUDIT_RECORDS` lives in `src/pages/Dashboard.tsx`; Reports imports it. Loyverse API not wired yet.
+- **Dashboard:** audit trail (`AuditFilters` + `AuditTable`). **Reports:** stock tabs (0 / 1–3 / 4+), search, table — match Dashboard table styling.
+- **Pagination:** 15 rows/page (`AuditTable`; same in Reports). Controls: Prev/Next + "Showing X to Y of Z".
+- **UI shell:** `bg-base-200`, `max-w-7xl`, cards `card bg-base-100 shadow border border-base-200`, tables `table text-sm`.
+- **Login** components exist but are **not** used in `App.tsx` — no auth layer yet.
+- Keep changes minimal; match existing patterns. Do not restore old Reports KPI/card grid UI unless asked.

@@ -46,17 +46,18 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
   }
 
   // Calculate pagination
-  const totalPages = Math.ceil(records.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const totalPages = Math.max(1, Math.ceil(records.length / ITEMS_PER_PAGE))
+  const safePage = Math.min(currentPage, totalPages)
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedRecords = records.slice(startIndex, endIndex)
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1)
+    if (safePage > 1) setCurrentPage(safePage - 1)
   }
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+    if (safePage < totalPages) setCurrentPage(safePage + 1)
   }
 
   // Calculate current stock per item (latest stock for each unique item)
@@ -141,19 +142,19 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
           <button
             className="btn btn-sm btn-outline text-xs"
             onClick={handlePreviousPage}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
           >
             ← Prev
           </button>
           <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-xs sm:text-sm font-medium text-base-content whitespace-nowrap">
-              {currentPage} / {totalPages}
+              {safePage} / {totalPages}
             </span>
           </div>
           <button
             className="btn btn-sm btn-outline text-xs"
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
           >
             Next →
           </button>
