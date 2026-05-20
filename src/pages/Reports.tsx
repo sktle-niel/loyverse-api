@@ -4,10 +4,32 @@ import { MOCK_AUDIT_RECORDS } from './Dashboard'
 export function Reports() {
   // Calculate statistics
   const totalChanges = MOCK_AUDIT_RECORDS.length
-  const today = new Date().toDateString()
-  const todayChanges = MOCK_AUDIT_RECORDS.filter(
-    (r) => new Date(r.timestamp).toDateString() === today
-  ).length
+
+  // Get current stock for each item (latest entry)
+  const itemStocks = new Map<string, number>()
+  MOCK_AUDIT_RECORDS.forEach((record) => {
+    itemStocks.set(record.itemName, record.newStock)
+  })
+
+  // Categorize inventory status
+  const outOfStock: [string, number][] = []
+  const lowStock: [string, number][] = []
+  const inStock: [string, number][] = []
+
+  itemStocks.forEach((stock, itemName) => {
+    if (stock === 0) {
+      outOfStock.push([itemName, stock])
+    } else if (stock < 4) {
+      lowStock.push([itemName, stock])
+    } else {
+      inStock.push([itemName, stock])
+    }
+  })
+
+  // Sort by stock level (ascending)
+  outOfStock.sort((a, b) => a[1] - b[1])
+  lowStock.sort((a, b) => a[1] - b[1])
+  inStock.sort((a, b) => a[1] - b[1])
 
   // Unique admins
   const uniqueAdmins = new Set(MOCK_AUDIT_RECORDS.map((r) => r.adminName))
@@ -23,27 +45,6 @@ export function Reports() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
 
-  // Most active admins
-  const adminChanges = new Map<string, number>()
-  MOCK_AUDIT_RECORDS.forEach((record) => {
-    const current = adminChanges.get(record.adminName) || 0
-    adminChanges.set(record.adminName, current + 1)
-  })
-  const topAdmins = Array.from(adminChanges.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-
-  // Stock changes (gains vs losses)
-  let totalIncreases = 0
-  let totalDecreases = 0
-  MOCK_AUDIT_RECORDS.forEach((record) => {
-    if (record.changeAmount > 0) {
-      totalIncreases += record.changeAmount
-    } else {
-      totalDecreases += Math.abs(record.changeAmount)
-    }
-  })
-
   return (
     <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -53,159 +54,151 @@ export function Reports() {
             Reports
           </h1>
           <p className="text-base-content/60 text-sm sm:text-base">
-            Audit trail analytics and statistics
+            Inventory status and audit analytics
           </p>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          {/* Total Changes */}
+        {/* Inventory Status Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          {/* Out of Stock */}
           <div className="card bg-base-100 shadow border border-base-200">
             <div className="card-body p-4 sm:p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Total Changes</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-primary mt-2">
-                    {totalChanges}
+                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Out of Stock</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-error mt-2">
+                    {outOfStock.length}
                   </p>
                 </div>
-                <div className="text-3xl">📊</div>
+                <div className="text-3xl">❌</div>
               </div>
             </div>
           </div>
 
-          {/* Today's Changes */}
+          {/* Low Stock */}
           <div className="card bg-base-100 shadow border border-base-200">
             <div className="card-body p-4 sm:p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Today's Changes</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-info mt-2">
-                    {todayChanges}
+                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Low Stock</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-warning mt-2">
+                    {lowStock.length}
                   </p>
                 </div>
-                <div className="text-3xl">📅</div>
+                <div className="text-3xl">⚠️</div>
               </div>
             </div>
           </div>
 
-          {/* Active Admins */}
+          {/* In Stock */}
           <div className="card bg-base-100 shadow border border-base-200">
             <div className="card-body p-4 sm:p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Active Admins</p>
+                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">In Stock</p>
                   <p className="text-2xl sm:text-3xl font-bold text-success mt-2">
-                    {adminCount}
+                    {inStock.length}
                   </p>
                 </div>
-                <div className="text-3xl">👥</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stock Increases */}
-          <div className="card bg-base-100 shadow border border-base-200">
-            <div className="card-body p-4 sm:p-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-base-content/60 text-xs sm:text-sm font-medium">Stock Increases</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-success mt-2">
-                    {totalIncreases}
-                  </p>
-                </div>
-                <div className="text-3xl">📈</div>
+                <div className="text-3xl">✅</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Most Changed Items */}
-          <div className="card bg-base-100 shadow border border-base-200">
+        {/* Inventory Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {/* Out of Stock Items */}
+          <div className="card bg-base-100 shadow border border-error/20">
             <div className="card-body">
-              <h2 className="card-title text-lg sm:text-xl text-base-content mb-4">
-                Top Changed Items
+              <h2 className="card-title text-lg text-error mb-4">
+                ❌ Out of Stock (0)
               </h2>
-              <div className="space-y-3">
-                {topItems.map(([item, count]) => (
-                  <div key={item} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm sm:text-base text-base-content font-medium truncate">
-                        {item}
-                      </p>
+              {outOfStock.length === 0 ? (
+                <p className="text-base-content/60 text-sm">No items out of stock</p>
+              ) : (
+                <div className="space-y-2">
+                  {outOfStock.map(([item, stock]) => (
+                    <div key={item} className="flex justify-between items-center p-2 bg-base-200/30 rounded">
+                      <span className="text-sm text-base-content truncate">{item}</span>
+                      <span className="text-xs font-bold text-error">{stock}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 h-2 bg-base-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full"
-                          style={{ width: `${(count / topItems[0][1]) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs sm:text-sm font-semibold text-primary min-w-[2rem] text-right">
-                        {count}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Most Active Admins */}
-          <div className="card bg-base-100 shadow border border-base-200">
+          {/* Low Stock Items */}
+          <div className="card bg-base-100 shadow border border-warning/20">
             <div className="card-body">
-              <h2 className="card-title text-lg sm:text-xl text-base-content mb-4">
-                Most Active Admins
+              <h2 className="card-title text-lg text-warning mb-4">
+                ⚠️ Low Stock (1-3)
               </h2>
-              <div className="space-y-3">
-                {topAdmins.map(([admin, count]) => (
-                  <div key={admin} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm sm:text-base text-base-content font-medium truncate">
-                        {admin}
-                      </p>
+              {lowStock.length === 0 ? (
+                <p className="text-base-content/60 text-sm">No low stock items</p>
+              ) : (
+                <div className="space-y-2">
+                  {lowStock.map(([item, stock]) => (
+                    <div key={item} className="flex justify-between items-center p-2 bg-base-200/30 rounded">
+                      <span className="text-sm text-base-content truncate">{item}</span>
+                      <span className="text-xs font-bold text-warning">{stock}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 h-2 bg-base-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-accent rounded-full"
-                          style={{ width: `${(count / topAdmins[0][1]) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs sm:text-sm font-semibold text-accent min-w-[2rem] text-right">
-                        {count}
-                      </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* In Stock Items */}
+          <div className="card bg-base-100 shadow border border-success/20">
+            <div className="card-body">
+              <h2 className="card-title text-lg text-success mb-4">
+                ✅ In Stock (4+)
+              </h2>
+              {inStock.length === 0 ? (
+                <p className="text-base-content/60 text-sm">No items in stock</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {inStock.map(([item, stock]) => (
+                    <div key={item} className="flex justify-between items-center p-2 bg-base-200/30 rounded">
+                      <span className="text-sm text-base-content truncate">{item}</span>
+                      <span className="text-xs font-bold text-success">{stock}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Summary Stats */}
-        <div className="card bg-base-100 shadow border border-base-200 mt-4 sm:mt-6">
+        {/* Most Changed Items */}
+        <div className="card bg-base-100 shadow border border-base-200">
           <div className="card-body">
             <h2 className="card-title text-lg sm:text-xl text-base-content mb-4">
-              Stock Movement Summary
+              📊 Top Changed Items
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div className="p-3 sm:p-4 bg-base-200/30 rounded-lg border border-base-200">
-                <p className="text-xs text-base-content/60 mb-1">Total Increases</p>
-                <p className="text-xl sm:text-2xl font-bold text-success">{totalIncreases}</p>
-              </div>
-              <div className="p-3 sm:p-4 bg-base-200/30 rounded-lg border border-base-200">
-                <p className="text-xs text-base-content/60 mb-1">Total Decreases</p>
-                <p className="text-xl sm:text-2xl font-bold text-error">{totalDecreases}</p>
-              </div>
-              <div className="p-3 sm:p-4 bg-base-200/30 rounded-lg border border-base-200">
-                <p className="text-xs text-base-content/60 mb-1">Unique Items</p>
-                <p className="text-xl sm:text-2xl font-bold text-warning">
-                  {itemChanges.size}
-                </p>
-              </div>
+            <div className="space-y-3">
+              {topItems.map(([item, count]) => (
+                <div key={item} className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm sm:text-base text-base-content font-medium truncate">
+                      {item}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 h-2 bg-base-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full"
+                        style={{ width: `${(count / topItems[0][1]) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-primary min-w-[2rem] text-right">
+                      {count}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
