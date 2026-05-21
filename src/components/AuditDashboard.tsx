@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { AuditFilters } from './AuditFilters'
 import { AuditTable, type AuditRecord } from './AuditTable'
 import { useAuditFilters } from '../hooks/useAuditFilters'
-import { MOTOR_PARTS_PRODUCTS, ADMIN_NAMES } from '../constants/productConstants'
+
 
 // Mock data - replace with real API call later
 const MOCK_AUDIT_RECORDS: AuditRecord[] = [
