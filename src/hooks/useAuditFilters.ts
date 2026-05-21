@@ -18,16 +18,19 @@ interface UseAuditFiltersReturn {
 export function useAuditFilters(
   records: AuditRecord[],
 ): UseAuditFiltersReturn {
+  const safeRecords = records ?? []
+
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedItem, setSelectedItem] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
   // Extract unique items from records
-  const items = Array.from(new Set(records.map((r) => r.itemName)))
+  const items = Array.from(new Set(safeRecords.map((r) => r.itemName)))
 
   // Filter records based on selected filters
-  const filteredRecords = records.filter((record) => {
+  const filteredRecords = safeRecords.filter((record) => {
+
     const searchMatch =
       !searchTerm ||
       record.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
