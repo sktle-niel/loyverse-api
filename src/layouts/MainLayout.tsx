@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import { ThemeToggleButton } from '../components/ThemeToggleButton'
 import { Dashboard } from '../pages/Dashboard'
-import { Reports } from '../pages/Reports'
+import { Inventory } from '../pages/Inventory'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/sidebar.css'
 
@@ -30,7 +30,7 @@ export function MainLayout() {
       case 'dashboard':
         return <Dashboard />
       case 'reports':
-        return <Reports />
+        return <Inventory />
       case 'settings':
         return (
           <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">

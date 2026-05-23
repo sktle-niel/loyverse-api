@@ -3,44 +3,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { AuditFilters } from '../components/AuditFilters'
 import { AuditTable, type AuditRecord } from '../components/AuditTable'
 import { useAuditFilters } from '../hooks/useAuditFilters'
-import type { AuditResponse } from '../api/types'
-import { apiFetchJson } from '../api/client'
-
 export function Dashboard() {
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [source, setSource] = useState<'mock' | 'loyverse'>('loyverse')
+  const [source, setSource] = useState<'mock' | 'loyverse'>('mock')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      try {
-        const data = await apiFetchJson<AuditResponse>('/api/audit')
-        if (cancelled) return
-        setAuditRecords(data.records)
-        setSource(data.source)
-      } catch (e) {
-        if (cancelled) return
-
-        setAuditRecords([])
-        setSource('loyverse')
-
-        const msg = e instanceof Error ? e.message : 'Failed to fetch audit records'
-        setErrorMessage(msg)
-        console.error('Failed to fetch /api/audit:', e)
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
+    // API connections removed for now.
+    // Keep UI functional with empty/mock state.
+    setAuditRecords([])
+    setSource('mock')
+    setErrorMessage(null)
+    setIsLoading(false)
   }, [])
+
 
   const {
     filteredRecords: searchFilteredRecords,
