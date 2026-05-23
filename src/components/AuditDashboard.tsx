@@ -88,16 +88,10 @@ export function AuditDashboard() {
   const {
     filteredRecords,
     searchTerm,
-    selectedItem,
-    dateFrom,
-    dateTo,
-    items,
     onSearchChange,
-    onItemChange,
-    onDateFromChange,
-    onDateToChange,
     onClearFilters,
   } = useAuditFilters(auditRecords)
+
 
   return (
     <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
@@ -115,16 +109,10 @@ export function AuditDashboard() {
         {/* Filters */}
         <AuditFilters
           searchTerm={searchTerm}
-          selectedItem={selectedItem}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
           onSearchChange={onSearchChange}
-          onItemChange={onItemChange}
-          onDateFromChange={onDateFromChange}
-          onDateToChange={onDateToChange}
           onClearFilters={onClearFilters}
-          items={items}
         />
+
 
         {/* Audit Table */}
         <AuditTable records={filteredRecords} isLoading={isLoading} />

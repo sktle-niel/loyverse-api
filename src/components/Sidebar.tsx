@@ -28,7 +28,7 @@ const SettingsIcon = () => (
 export function Sidebar({ currentPage, onPageChange, onPageChangeCallback }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { id: 'reports', label: 'Reports', icon: ReportsIcon },
+    { id: 'reports', label: 'Inventory', icon: ReportsIcon },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { AuditFilters } from '../components/AuditFilters'
 import { AuditTable, type AuditRecord } from '../components/AuditTable'
 import { useAuditFilters } from '../hooks/useAuditFilters'
+import { readLocalStorageJson } from '../utils/storage'
+
 export function Dashboard() {
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -10,28 +12,33 @@ export function Dashboard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    // API connections removed for now.
-    // Keep UI functional with empty/mock state.
-    setAuditRecords([])
-    setSource('mock')
-    setErrorMessage(null)
-    setIsLoading(false)
+    // Load audit from localStorage (populated by Inventory page)
+    try {
+      const fromLs = readLocalStorageJson<AuditRecord[]>('inventory.audit.v1')
+      const arr = Array.isArray(fromLs) ? fromLs : []
+      // Sort desc by timestamp (newest first)
+      arr.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      setAuditRecords(arr)
+      setSource('mock')
+      setErrorMessage(null)
+    } catch (e) {
+
+      setAuditRecords([])
+      setSource('mock')
+      setErrorMessage('Failed to load audit from local storage')
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
 
   const {
     filteredRecords: searchFilteredRecords,
     searchTerm,
-    selectedItem,
-    dateFrom,
-    dateTo,
-    items,
     onSearchChange,
-    onItemChange,
-    onDateFromChange,
-    onDateToChange,
     onClearFilters,
   } = useAuditFilters(auditRecords)
+
 
   const sourceText = useMemo(() => (source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'), [source])
 
@@ -52,16 +59,10 @@ export function Dashboard() {
         {/* Filters */}
         <AuditFilters
           searchTerm={searchTerm}
-          selectedItem={selectedItem}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
           onSearchChange={onSearchChange}
-          onItemChange={onItemChange}
-          onDateFromChange={onDateFromChange}
-          onDateToChange={onDateToChange}
           onClearFilters={onClearFilters}
-          items={items}
         />
+
 
         {errorMessage ? (
           <div className="alert alert-error mb-4">

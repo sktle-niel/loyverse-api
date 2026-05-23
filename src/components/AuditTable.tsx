@@ -5,11 +5,14 @@ export interface AuditRecord {
   id: string
   itemName: string
   adminName: string
+  /** branch where the stock was updated (if available) */
+  branchId?: string
   oldStock: number
   newStock: number
   changeAmount: number
   timestamp: string
 }
+
 
 interface AuditTableProps {
   records: AuditRecord[]
@@ -60,12 +63,6 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
     if (safePage < totalPages) setCurrentPage(safePage + 1)
   }
 
-  // Calculate current stock per item (latest stock for each unique item)
-  const itemStocks = new Map<string, number>()
-  records.forEach((record) => {
-    itemStocks.set(record.itemName, record.newStock)
-  })
-
   return (
     <div className="card bg-base-100 shadow border border-base-200">
       {/* Desktop Table */}
@@ -74,8 +71,10 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
           <thead className="bg-base-200">
             <tr className="border-b border-base-300">
               <th className="text-base-content font-semibold">Item</th>
+              <th className="text-base-content font-semibold">Branch</th>
               <th className="text-base-content font-semibold">Old Stock</th>
               <th className="text-base-content font-semibold">New Stock</th>
+
               <th className="text-base-content font-semibold">Change</th>
               <th className="text-base-content font-semibold">Timestamp</th>
             </tr>
@@ -84,8 +83,10 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
             {paginatedRecords.map((record) => (
               <tr key={record.id} className="border-b border-base-200 hover:bg-base-200/30 transition-colors">
                 <td className="text-base-content font-medium">{record.itemName}</td>
+                <td className="text-base-content/70">{record.branchId ?? '—'}</td>
                 <td className="text-base-content/70">{record.oldStock}</td>
                 <td className="text-base-content/70">{record.newStock}</td>
+
                 <td>
                   <div
                     className={`font-semibold ${
@@ -113,7 +114,10 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <p className="font-medium text-base-content text-sm">{record.itemName}</p>
-                <p className="text-xs text-base-content/60">by {record.adminName}</p>
+                <p className="text-xs text-base-content/60">
+                  Branch: {record.branchId ?? '—'} · by {record.adminName}
+                </p>
+
               </div>
               <div
                 className={`font-semibold text-sm ${
