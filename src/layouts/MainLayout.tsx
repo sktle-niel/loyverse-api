@@ -8,7 +8,10 @@ import { useTheme } from '../hooks/useTheme'
 import '../styles/sidebar.css'
 
 export function MainLayout() {
-  const [currentPage, setCurrentPage] = useState('dashboard')
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = window.localStorage.getItem('currentPage')
+    return saved || 'dashboard'
+  })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggle } = useTheme()
 
@@ -24,6 +27,10 @@ export function MainLayout() {
       document.body.style.overflow = 'unset'
     }
   }, [sidebarOpen])
+
+  useEffect(() => {
+    window.localStorage.setItem('currentPage', currentPage)
+  }, [currentPage])
 
   const renderPage = () => {
     switch (currentPage) {
