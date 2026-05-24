@@ -89,8 +89,14 @@ export function AuditDashboard() {
     filteredRecords,
     searchTerm,
     onSearchChange,
+    branchId,
+    onBranchChange,
+    direction,
+    onDirectionChange,
+    branches,
     onClearFilters,
   } = useAuditFilters(auditRecords)
+
 
 
   return (
@@ -110,8 +116,14 @@ export function AuditDashboard() {
         <AuditFilters
           searchTerm={searchTerm}
           onSearchChange={onSearchChange}
+          branchId={branchId}
+          onBranchChange={onBranchChange}
+          direction={direction}
+          onDirectionChange={onDirectionChange}
           onClearFilters={onClearFilters}
+          branches={branches}
         />
+
 
 
         {/* Audit Table */}

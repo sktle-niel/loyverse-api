@@ -4,75 +4,62 @@ import type { AuditRecord } from '../components/AuditTable'
 interface UseAuditFiltersReturn {
   filteredRecords: AuditRecord[]
   searchTerm: string
-  selectedItem: string
-  dateFrom: string
-  dateTo: string
-  items: string[]
+  branchId: string
+  direction: 'all' | 'decrease' | 'increase'
+  branches: { id: string; name: string }[]
   onSearchChange: (search: string) => void
-  onItemChange: (item: string) => void
-  onDateFromChange: (date: string) => void
-  onDateToChange: (date: string) => void
+  onBranchChange: (branchId: string) => void
+  onDirectionChange: (direction: 'all' | 'decrease' | 'increase') => void
   onClearFilters: () => void
 }
 
-export function useAuditFilters(
-  records: AuditRecord[],
-): UseAuditFiltersReturn {
+const BRANCHES: { id: string; name: string }[] = [
+  { id: 'branch-001', name: 'Main Branch' },
+  { id: 'branch-002', name: 'North Branch' },
+  { id: 'branch-003', name: 'South Branch' },
+]
+
+export function useAuditFilters(records: AuditRecord[]): UseAuditFiltersReturn {
   const safeRecords = records ?? []
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedItem, setSelectedItem] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const [direction, setDirection] = useState<'all' | 'decrease' | 'increase'>('all')
 
-  // Extract unique items from records
-  const items = Array.from(new Set(safeRecords.map((r) => r.itemName)))
-
-  // Filter records based on selected filters
   const filteredRecords = safeRecords.filter((record) => {
-
     const searchMatch =
       !searchTerm ||
       record.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.adminName.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const itemMatch =
-      !selectedItem || record.itemName === selectedItem
 
-    let dateMatch = true
-    if (dateFrom) {
-      const recordDate = new Date(record.timestamp).toDateString()
-      const fromDate = new Date(dateFrom).toDateString()
-      dateMatch = dateMatch && recordDate >= fromDate
-    }
+    const branchMatch = !branchId || record.branchId === branchId
 
-    if (dateTo) {
-      const recordDate = new Date(record.timestamp).toDateString()
-      const toDate = new Date(dateTo).toDateString()
-      dateMatch = dateMatch && recordDate <= toDate
-    }
+    const directionMatch =
+      direction === 'all'
+        ? true
+        : direction === 'decrease'
+          ? record.changeAmount < 0
+          : record.changeAmount > 0
 
-    return searchMatch && itemMatch && dateMatch
+    return searchMatch && branchMatch && directionMatch
   })
 
   const handleClearFilters = () => {
     setSearchTerm('')
-    setSelectedItem('')
-    setDateFrom('')
-    setDateTo('')
+    setBranchId('')
+    setDirection('all')
   }
 
   return {
     filteredRecords,
     searchTerm,
-    selectedItem,
-    dateFrom,
-    dateTo,
-    items,
+    branchId,
+    direction,
+    branches: BRANCHES,
     onSearchChange: setSearchTerm,
-    onItemChange: setSelectedItem,
-    onDateFromChange: setDateFrom,
-    onDateToChange: setDateTo,
+    onBranchChange: setBranchId,
+    onDirectionChange: setDirection,
     onClearFilters: handleClearFilters,
   }
 }
+
