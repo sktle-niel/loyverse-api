@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SuccessToast } from '../components/SuccessToast'
+
 import type { AuditRecord } from '../components/AuditTable'
 import { readLocalStorageJson, writeLocalStorageJson } from '../utils/storage'
+import { useToast } from '../context/ToastContext'
 
 type BranchId = 'branch-001' | 'branch-002' | 'branch-003'
 
@@ -74,6 +75,8 @@ function nowIso() {
 const ITEMS_PER_PAGE = 10
 
 export function Inventory() {
+  const { showToast } = useToast()
+
   const [query, setQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -86,9 +89,6 @@ export function Inventory() {
   const [draftStocks, setDraftStocks] = useState<Record<string, string>>({})
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set())
   const [savingProductId, setSavingProductId] = useState<string | null>(null)
-
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
 
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -206,20 +206,15 @@ export function Inventory() {
     await new Promise((r) => setTimeout(r, 350))
     setSavingProductId(null)
 
-    setToastMessage(`Stock updated for ${p.name}.`)
-    setToastOpen(true)
+    showToast({ message: `Stock updated for ${p.name}.`, durationMs: 6000 })
   }
 
   return (
     <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
-      <SuccessToast open={toastOpen} message={toastMessage} durationMs={6000} onClose={() => setToastOpen(false)} />
-
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content mb-2">Inventory Stock</h1>
-          <p className="text-base-content/60 text-sm sm:text-base">
-            Edit stock per product for each branch. Changes are saved locally for now.
-          </p>
+          <p className="text-base-content/60 text-sm sm:text-base">Edit stock per product for each branch. Changes are saved locally for now.</p>
         </div>
 
         {/* Search */}
@@ -292,8 +287,7 @@ export function Inventory() {
                                 const k = stockKey(p.id, b.id)
                                 const isDirty = dirtyKeys.has(k)
 
-                                const value =
-                                  draftStocks[k] !== undefined ? draftStocks[k] : String(getStock(p, b.id))
+                                const value = draftStocks[k] !== undefined ? draftStocks[k] : String(getStock(p, b.id))
 
                                 return (
                                   <td key={k} className="min-w-[140px]">
@@ -301,9 +295,7 @@ export function Inventory() {
                                       <input
                                         inputMode="numeric"
                                         pattern="[0-9]*"
-                                        className={`input input-bordered input-sm w-24 text-right ${
-                                          isDirty ? 'input-warning' : ''
-                                        }`}
+                                        className={`input input-bordered input-sm w-24 text-right ${isDirty ? 'input-warning' : ''}`}
                                         value={value}
                                         onFocus={() => ensureDraftValue(p, b.id)}
                                         onChange={(ev) => setDraft(p, b.id, ev.target.value)}
@@ -324,8 +316,7 @@ export function Inventory() {
               {/* Pagination Controls */}
               <div className="card-body border-t border-base-200 p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-xs sm:text-sm text-base-content/60 text-center sm:text-left">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}{' '}
-                  products
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
                 </div>
 
                 <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
