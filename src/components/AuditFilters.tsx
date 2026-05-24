@@ -1,17 +1,33 @@
 // Audit trail filter component
+export type AuditDirectionFilter = 'all' | 'decrease' | 'increase'
+export type AuditBranchFilter = string
+
 interface AuditFiltersProps {
   searchTerm: string
   onSearchChange: (search: string) => void
+
+  branchId: AuditBranchFilter
+  onBranchChange: (branchId: AuditBranchFilter) => void
+
+  direction: AuditDirectionFilter
+  onDirectionChange: (direction: AuditDirectionFilter) => void
+
   onClearFilters: () => void
+  branches: { id: string; name: string }[]
 }
+
 
 
 export function AuditFilters({
   searchTerm,
   onSearchChange,
+  branchId,
+  onBranchChange,
+  direction,
+  onDirectionChange,
   onClearFilters,
+  branches,
 }: AuditFiltersProps) {
-
   return (
     <div className="card bg-base-100 shadow border border-base-200 mb-6">
       <div className="card-body">
@@ -33,8 +49,44 @@ export function AuditFilters({
             />
           </div>
 
-          {/* Search Only */}
+          {/* Branch Filter */}
+          <div className="form-control">
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
+                Branch
+              </span>
+            </label>
+            <select
+              className="select select-bordered w-full focus:select-primary text-sm"
+              value={branchId}
+              onChange={(e) => onBranchChange(e.target.value)}
+            >
+              <option value="">All branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* Direction Filter */}
+          <div className="form-control">
+            <label className="label py-2 sm:py-3">
+              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
+                Movement
+              </span>
+            </label>
+            <select
+              className="select select-bordered w-full focus:select-primary text-sm"
+              value={direction}
+              onChange={(e) => onDirectionChange(e.target.value as any)}
+            >
+              <option value="all">All</option>
+              <option value="decrease">Decreased stock</option>
+              <option value="increase">Increased stock</option>
+            </select>
+          </div>
         </div>
 
         {/* Clear Filters Button */}
@@ -50,3 +102,4 @@ export function AuditFilters({
     </div>
   )
 }
+

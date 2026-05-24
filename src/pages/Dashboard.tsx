@@ -36,8 +36,14 @@ export function Dashboard() {
     filteredRecords: searchFilteredRecords,
     searchTerm,
     onSearchChange,
+    branchId,
+    onBranchChange,
+    direction,
+    onDirectionChange,
+    branches,
     onClearFilters,
   } = useAuditFilters(auditRecords)
+
 
 
   const sourceText = useMemo(() => (source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'), [source])
@@ -60,8 +66,14 @@ export function Dashboard() {
         <AuditFilters
           searchTerm={searchTerm}
           onSearchChange={onSearchChange}
+          branchId={branchId}
+          onBranchChange={onBranchChange}
+          direction={direction}
+          onDirectionChange={onDirectionChange}
           onClearFilters={onClearFilters}
+          branches={branches}
         />
+
 
 
         {errorMessage ? (
