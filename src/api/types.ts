@@ -8,6 +8,7 @@ export interface AuditRecord {
   newStock: number
   changeAmount: number
   timestamp: string
+  branchId?: string
 }
 
 export interface AuditResponse {
@@ -17,6 +18,7 @@ export interface AuditResponse {
 }
 
 export type InventoryStatus = 'in-stock' | 'low-stock' | 'out-of-stock'
+
 export interface InventoryItem {
   itemName: string
   stock: number
@@ -36,3 +38,78 @@ export interface InventoryResponse {
   source: 'loyverse' | 'mock'
 }
 
+export interface StoreInfo {
+  id: string
+  name: string
+}
+
+export interface ProductStockCell {
+  storeId: string
+  stock: number
+}
+
+export interface Product {
+  id: string
+  variantId: string
+  name: string
+  sku: string
+  stocks: ProductStockCell[]
+}
+
+export interface ProductsResponse {
+  products: Product[]
+  stores: StoreInfo[]
+  total: number
+  source: 'loyverse' | 'mock'
+}
+
+export interface StockUpdateInput {
+  storeId: string
+  stock: number
+}
+
+export interface SubmitStockRequestBody {
+  updates: StockUpdateInput[]
+  requestedBy?: string
+}
+
+export interface SubmitStockRequestResponse {
+  request: StockChangeRequest
+  message: string
+}
+
+export interface StockRequestLine {
+  storeId: string
+  storeName: string
+  oldStock: number
+  newStock: number
+}
+
+export type StockRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface StockChangeRequest {
+  id: string
+  itemId: string
+  variantId: string
+  itemName: string
+  sku: string
+  requestedBy: string
+  status: StockRequestStatus
+  lines: StockRequestLine[]
+  createdAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+  rejectionReason?: string
+}
+
+export interface StockRequestsResponse {
+  requests: StockChangeRequest[]
+  total: number
+  storage?: 'mysql' | 'memory'
+}
+
+export interface ApproveStockRequestResponse {
+  request: StockChangeRequest
+  message: string
+  source: 'loyverse' | 'mock'
+}
