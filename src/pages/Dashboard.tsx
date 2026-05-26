@@ -1,36 +1,12 @@
 // Dashboard page - Audit trail
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { AuditFilters } from '../components/AuditFilters'
-import { AuditTable, type AuditRecord } from '../components/AuditTable'
+import { AuditTable } from '../components/AuditTable'
 import { useAuditFilters } from '../hooks/useAuditFilters'
-import { readLocalStorageJson } from '../utils/storage'
+import { useAudit } from '../hooks/useAudit'
 
 export function Dashboard() {
-  const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [source, setSource] = useState<'mock' | 'loyverse'>('mock')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Load audit from localStorage (populated by Inventory page)
-    try {
-      const fromLs = readLocalStorageJson<AuditRecord[]>('inventory.audit.v1')
-      const arr = Array.isArray(fromLs) ? fromLs : []
-      // Sort desc by timestamp (newest first)
-      arr.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      setAuditRecords(arr)
-      setSource('mock')
-      setErrorMessage(null)
-    } catch (e) {
-
-      setAuditRecords([])
-      setSource('mock')
-      setErrorMessage('Failed to load audit from local storage')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
+  const { auditRecords, isLoading, error, source } = useAudit()
 
   const {
     filteredRecords: searchFilteredRecords,
@@ -43,8 +19,6 @@ export function Dashboard() {
     branches,
     onClearFilters,
   } = useAuditFilters(auditRecords)
-
-
 
   const sourceText = useMemo(() => (source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'), [source])
 
@@ -74,13 +48,11 @@ export function Dashboard() {
           branches={branches}
         />
 
-
-
-        {errorMessage ? (
+        {error ? (
           <div className="alert alert-error mb-4">
             <div>
               <div className="font-semibold">Failed to load audit data</div>
-              <div className="text-xs">{errorMessage}</div>
+              <div className="text-xs">{error}</div>
             </div>
           </div>
         ) : null}
@@ -91,4 +63,3 @@ export function Dashboard() {
     </div>
   )
 }
-

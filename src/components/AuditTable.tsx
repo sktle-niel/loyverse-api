@@ -1,6 +1,5 @@
 // Audit trail table component
 import { useState } from 'react'
-
 export interface AuditRecord {
   id: string
   itemName: string
@@ -11,6 +10,11 @@ export interface AuditRecord {
   newStock: number
   changeAmount: number
   timestamp: string
+}
+
+function getBranchName(branchId?: string): string {
+  if (!branchId) return '—'
+  return branchId
 }
 
 
@@ -83,7 +87,7 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
             {paginatedRecords.map((record) => (
               <tr key={record.id} className="border-b border-base-200 hover:bg-base-200/30 transition-colors">
                 <td className="text-base-content font-medium">{record.itemName}</td>
-                <td className="text-base-content/70">{record.branchId ?? '—'}</td>
+                <td className="text-base-content/70">{getBranchName(record.branchId)}</td>
                 <td className="text-base-content/70">{record.oldStock}</td>
                 <td className="text-base-content/70">{record.newStock}</td>
 
@@ -114,9 +118,9 @@ export function AuditTable({ records, isLoading = false }: AuditTableProps) {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <p className="font-medium text-base-content text-sm">{record.itemName}</p>
-                <p className="text-xs text-base-content/60">
-                  Branch: {record.branchId ?? '—'} · by {record.adminName}
-                </p>
+<p className="text-xs text-base-content/60">
+                   Branch: {getBranchName(record.branchId)} · by {record.adminName}
+                 </p>
 
               </div>
               <div

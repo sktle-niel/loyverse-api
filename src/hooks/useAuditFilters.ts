@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { AuditRecord } from '../components/AuditTable'
 
 interface UseAuditFiltersReturn {
@@ -13,18 +13,22 @@ interface UseAuditFiltersReturn {
   onClearFilters: () => void
 }
 
-const BRANCHES: { id: string; name: string }[] = [
-  { id: 'branch-001', name: 'Main Branch' },
-  { id: 'branch-002', name: 'North Branch' },
-  { id: 'branch-003', name: 'South Branch' },
-]
-
 export function useAuditFilters(records: AuditRecord[]): UseAuditFiltersReturn {
   const safeRecords = records ?? []
 
   const [searchTerm, setSearchTerm] = useState('')
   const [branchId, setBranchId] = useState('')
   const [direction, setDirection] = useState<'all' | 'decrease' | 'increase'>('all')
+
+  const branches = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const r of safeRecords) {
+      if (r.branchId && !map.has(r.branchId)) {
+        map.set(r.branchId, r.branchId)
+      }
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }))
+  }, [safeRecords])
 
   const filteredRecords = safeRecords.filter((record) => {
     const searchMatch =
@@ -55,7 +59,7 @@ export function useAuditFilters(records: AuditRecord[]): UseAuditFiltersReturn {
     searchTerm,
     branchId,
     direction,
-    branches: BRANCHES,
+    branches,
     onSearchChange: setSearchTerm,
     onBranchChange: setBranchId,
     onDirectionChange: setDirection,

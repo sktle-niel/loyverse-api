@@ -1,73 +1,49 @@
-# React + TypeScript + Vite
+# Two Wheels Zone — Inventory UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for inventory stock editing and audit trail. Talks to **loyverse-api-backend** (Fastify + Loyverse + MySQL).
 
-Currently, two official plugins are available:
+## Quick start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env   # set VITE_API_BASE_URL
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open http://localhost:5173 (or the port Vite prints).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Variable | Example | Notes |
+|----------|---------|--------|
+| `VITE_API_BASE_URL` | `https://loyverse-api-backend-2.onrender.com/api` | Must end with `/api` |
+
+**Local dev:** `npm run dev` always calls `/api` on the same origin; Vite proxies to Render (see `vite.config.ts`). You do **not** need `VITE_API_BASE_URL` in `.env` for dev — avoids CORS.
+
+**Production build:** set `VITE_API_BASE_URL=https://your-backend.onrender.com/api` before `npm run build`.
+
+## Main pages
+
+| Page | Route (in-app) | API |
+|------|----------------|-----|
+| Audit Trail | Dashboard | `GET /api/audit` |
+| Inventory | Reports (sidebar) | `GET /api/products`, `PATCH /api/products/:id/stock` |
+| Approval queue | Inventory tab | `GET /api/stock-requests?status=pending`, approve/reject |
+
+## Stock change flow
+
+1. Staff edits stock → **Submit for approval** (`PATCH` → pending in MySQL)
+2. Admin opens **Approval Queue** tab → Approve or Reject
+3. On approve → backend updates Loyverse; audit appears on Dashboard
+
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview build |
+
+## Backend repo
+
+Separate project: `loyverse-api-backend` — deploy on Render/Hostinger with `LOYVERSE_ACCESS_TOKEN` and `MYSQL_*`.

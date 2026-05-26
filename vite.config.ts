@@ -7,4 +7,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://loyverse-api-backend-2.onrender.com',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
 })
