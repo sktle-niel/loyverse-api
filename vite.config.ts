@@ -9,10 +9,12 @@ export default defineConfig({
   ],
   server: {
     proxy: {
+      // Local backend (npm run dev in loyverse-api-backend). For Render API instead, set target to your Render URL.
       '/api': {
-        target: 'https://loyverse-api-backend-2.onrender.com',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: true,
+        timeout: 120_000,
+        proxyTimeout: 120_000,
       },
     },
   },

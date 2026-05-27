@@ -1,13 +1,28 @@
-// Main layout with sidebar and theme toggle
 import { useState, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import { ThemeToggleButton } from '../components/ThemeToggleButton'
 import { Dashboard } from '../pages/Dashboard'
 import { Inventory } from '../pages/Inventory'
+import { AdminApprovals } from '../pages/AdminApprovals'
+import { AdminOperators } from '../pages/AdminOperators'
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/sidebar.css'
 
+const ADMIN_ONLY_PAGES = new Set(['dashboard', 'approvals', 'operators'])
+
+function normalizePage(page: string, isAdmin: boolean): string {
+  if (!isAdmin && ADMIN_ONLY_PAGES.has(page)) {
+    return 'reports'
+  }
+  if (isAdmin && page === 'reports') {
+    return 'dashboard'
+  }
+  return page
+}
+
 export function MainLayout() {
+  const { user, isAdmin, logout } = useAuth()
   const [currentPage, setCurrentPage] = useState(() => {
     const saved = window.localStorage.getItem('currentPage')
     return saved || 'dashboard'
@@ -15,7 +30,11 @@ export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggle } = useTheme()
 
-  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (!user) return
+    setCurrentPage((page) => normalizePage(page, isAdmin))
+  }, [user, isAdmin])
+
   useEffect(() => {
     if (sidebarOpen && window.innerWidth < 1024) {
       document.body.style.overflow = 'hidden'
@@ -32,31 +51,27 @@ export function MainLayout() {
     window.localStorage.setItem('currentPage', currentPage)
   }, [currentPage])
 
+  const handlePageChange = (page: string) => {
+    setCurrentPage(normalizePage(page, isAdmin))
+  }
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />
+        return isAdmin ? <Dashboard /> : <Inventory />
       case 'reports':
-        return <Inventory />
-      case 'settings':
-        return (
-          <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
-            <div className="max-w-7xl mx-auto">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content">Settings</h1>
-              <p className="text-base-content/60 mt-2 text-sm sm:text-base">
-                Settings page coming soon...
-              </p>
-            </div>
-          </div>
-        )
+        return isAdmin ? <Dashboard /> : <Inventory />
+      case 'approvals':
+        return isAdmin ? <AdminApprovals /> : <Inventory />
+      case 'operators':
+        return isAdmin ? <AdminOperators /> : <Inventory />
       default:
-        return <Dashboard />
+        return isAdmin ? <Dashboard /> : <Inventory />
     }
   }
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar Overlay for mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 lg:hidden z-30"
@@ -64,20 +79,28 @@ export function MainLayout() {
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 right-0 lg:left-0 lg:right-auto w-64 transform transition-transform duration-300 ease-in-out z-40 ${
-        sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
-      }`}>
-        <Sidebar currentPage={currentPage} onPageChange={() => setSidebarOpen(false)} onPageChangeCallback={setCurrentPage} />
+      <div
+        className={`fixed inset-y-0 right-0 lg:left-0 lg:right-auto w-64 transform transition-transform duration-300 ease-in-out z-40 ${
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <Sidebar
+          currentPage={currentPage}
+          isAdmin={isAdmin}
+          userDisplayName={user?.displayName ?? user?.username ?? ''}
+          userRole={user?.role ?? 'operator'}
+          onLogout={logout}
+          onPageChange={() => setSidebarOpen(false)}
+          onPageChangeCallback={handlePageChange}
+        />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col relative w-full lg:ml-64">
-        {/* Mobile Menu Button */}
         <button
           className="lg:hidden fixed top-4 right-4 z-50 btn btn-ghost btn-circle bg-base-100/80 backdrop-blur-sm border border-base-content/10 hover:bg-base-100"
           onClick={() => setSidebarOpen(!sidebarOpen)}
           title={sidebarOpen ? 'Close menu' : 'Open menu'}
+          type="button"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {sidebarOpen ? (

@@ -1,4 +1,28 @@
-export type AuditSource = 'loyverse' | 'mock'
+export type UserRole = 'admin' | 'operator'
+
+export interface AuthUser {
+  id: string
+  username: string
+  email: string
+  displayName: string
+  role: UserRole
+}
+
+export interface PublicUser {
+  id: string
+  username: string
+  email: string
+  displayName: string
+  role: UserRole
+  createdAt: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: AuthUser
+}
+
+export type AuditSource = 'loyverse' | 'mock' | 'mysql'
 
 export interface AuditRecord {
   id: string
@@ -61,6 +85,9 @@ export interface ProductsResponse {
   stores: StoreInfo[]
   total: number
   source: 'loyverse' | 'mock'
+  catalogNote?: string
+  catalogTotal?: number
+  cachedAt?: string
 }
 
 export interface StockUpdateInput {

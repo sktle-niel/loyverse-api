@@ -1,6 +1,9 @@
-// Sidebar navigation component
 interface SidebarProps {
   currentPage: string
+  isAdmin: boolean
+  userDisplayName: string
+  userRole: 'admin' | 'operator'
+  onLogout: () => void
   onPageChange: () => void
   onPageChangeCallback: (page: string) => void
 }
@@ -18,18 +21,36 @@ const ReportsIcon = () => (
   </svg>
 )
 
-const SettingsIcon = () => (
+const ApprovalsIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 )
 
-export function Sidebar({ currentPage, onPageChange, onPageChangeCallback }: SidebarProps) {
+const OperatorsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+  </svg>
+)
+
+export function Sidebar({
+  currentPage,
+  isAdmin,
+  userDisplayName,
+  userRole,
+  onLogout,
+  onPageChange,
+  onPageChangeCallback,
+}: SidebarProps) {
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { id: 'reports', label: 'Inventory', icon: ReportsIcon },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
+    ...(isAdmin ? [{ id: 'dashboard', label: 'Dashboard', icon: DashboardIcon }] : []),
+    ...(!isAdmin ? [{ id: 'reports', label: 'Inventory', icon: ReportsIcon }] : []),
+    ...(isAdmin
+      ? [
+          { id: 'approvals', label: 'Approvals', icon: ApprovalsIcon },
+          { id: 'operators', label: 'Operators', icon: OperatorsIcon },
+        ]
+      : []),
   ]
 
   const handleMenuClick = (id: string) => {
@@ -38,20 +59,19 @@ export function Sidebar({ currentPage, onPageChange, onPageChangeCallback }: Sid
   }
 
   return (
-    <div className="sidebar-container h-full">
-      {/* Header */}
+    <div className="sidebar-container h-full flex flex-col">
       <div className="px-4 sm:px-6 py-6 sm:py-8 border-b border-base-content/10">
         <h2 className="text-base sm:text-lg font-semibold text-base-content">Two Wheels Zone</h2>
-        <p className="text-xs text-base-content/50 mt-2">Audit System</p>
+        <p className="text-xs text-base-content/50 mt-2">Inventory System</p>
       </div>
 
-      {/* Navigation - scrollable content area */}
       <nav className="flex-1 overflow-y-auto py-6 px-2 sm:px-3 space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => handleMenuClick(item.id)}
               className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-200 ${
                 currentPage === item.id
@@ -66,16 +86,14 @@ export function Sidebar({ currentPage, onPageChange, onPageChangeCallback }: Sid
         })}
       </nav>
 
-      {/* Footer Info */}
-      <div className="px-2 sm:px-4 py-4 sm:py-6 border-t border-base-content/10">
+      <div className="px-2 sm:px-4 py-4 sm:py-6 border-t border-base-content/10 space-y-3">
         <div className="px-2 sm:px-3 py-2 sm:py-3 bg-base-200/20 rounded-lg border border-base-content/10">
-          <p className="text-xs font-medium text-base-content mb-1">
-            ✓ Loyverse Connected
-          </p>
-          <p className="text-xs text-base-content/60">
-            Real-time audit active
-          </p>
+          <p className="text-xs font-medium text-base-content truncate">{userDisplayName}</p>
+          <p className="text-xs text-base-content/60 capitalize">{userRole}</p>
         </div>
+        <button type="button" className="btn btn-sm btn-outline w-full" onClick={onLogout}>
+          Sign out
+        </button>
       </div>
     </div>
   )
