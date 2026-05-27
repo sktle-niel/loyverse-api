@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { apiFetchJson } from '../api/client'
-import type { AuditRecord, AuditResponse } from '../api/types'
+import type { AuditRecord, AuditResponse, AuditSource } from '../api/types'
 
 export function useAudit() {
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<'mock' | 'loyverse'>('mock')
+  const [source, setSource] = useState<AuditSource>('mock')
 
   useEffect(() => {
     const fetchAudit = async () => {

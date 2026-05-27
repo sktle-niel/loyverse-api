@@ -6,6 +6,15 @@
 
 ---
 
+## Auth (required)
+
+- `AuthProvider` + `AppGate` — shows **Login** until authenticated
+- Token in `localStorage` (`auth.token`); sent as `Authorization: Bearer`
+- **admin:** Dashboard, Inventory, approval queue, Settings
+- **operator:** Inventory only (submit stock); no audit/approve
+
+Login: `POST /api/auth/login` with `{ username, password }`
+
 ## Architecture
 
 ```

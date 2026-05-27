@@ -13,7 +13,7 @@ export const LOGIN_CONSTANTS = {
   },
   CARD: {
     TITLE: 'Sign In',
-    SUBTITLE: 'Enter your credentials to access the dashboard',
+    SUBTITLE: 'Sign in with your username or email',
   },
   FOOTER: {
     NO_ACCOUNT: "Don't have an account?",

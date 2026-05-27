@@ -20,7 +20,16 @@ export function Dashboard() {
     onClearFilters,
   } = useAuditFilters(auditRecords)
 
-  const sourceText = useMemo(() => (source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'), [source])
+  const sourceText = useMemo(() => {
+    switch (source) {
+      case 'mysql':
+        return 'From approved requests (MySQL)'
+      case 'loyverse':
+        return 'Live from Loyverse'
+      default:
+        return 'Mock data'
+    }
+  }, [source])
 
   return (
     <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">

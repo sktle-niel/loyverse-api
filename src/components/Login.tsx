@@ -1,8 +1,9 @@
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { useLoginForm } from '../hooks/useLoginForm'
 import { FormInput } from './FormInput'
 import { FormButton } from './FormButton'
-import { FormCheckbox } from './FormCheckbox'
 import { LogoHeader } from './LogoHeader'
 import { LoginCard } from './LoginCard'
 import { LoginFooter } from './LoginFooter'
@@ -10,14 +11,23 @@ import { ThemeToggleButton } from './ThemeToggleButton'
 import { LOGIN_CONSTANTS } from '../constants/loginConstants'
 
 export function Login() {
+  const { login } = useAuth()
   const { toggle, theme } = useTheme()
   const form = useLoginForm()
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     form.setLoading(true)
-    // Backend integration will go here
-    setTimeout(() => form.setLoading(false), 1000)
+
+    try {
+      await login(form.login.trim(), form.password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
+    } finally {
+      form.setLoading(false)
+    }
   }
 
   return (
@@ -28,12 +38,18 @@ export function Login() {
 
           <LoginCard title={LOGIN_CONSTANTS.CARD.TITLE} subtitle={LOGIN_CONSTANTS.CARD.SUBTITLE}>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error ? (
+                <div className="alert alert-error text-sm py-2">
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
               <FormInput
-                label={LOGIN_CONSTANTS.FORM.EMAIL_LABEL}
-                type="email"
-                placeholder={LOGIN_CONSTANTS.FORM.EMAIL_PLACEHOLDER}
-                value={form.email}
-                onChange={(e) => form.setEmail(e.target.value)}
+                label="Username or email"
+                type="text"
+                placeholder="username or you@company.com"
+                value={form.login}
+                onChange={(e) => form.setLogin(e.target.value)}
                 required
               />
 
@@ -48,33 +64,10 @@ export function Login() {
                 onIconClick={form.toggleShowPassword}
               />
 
-              <div className="flex items-center justify-between">
-                <FormCheckbox
-                  label={LOGIN_CONSTANTS.FORM.REMEMBER_ME}
-                  checked={form.rememberMe}
-                  onChange={(e) => form.setRememberMe(e.target.checked)}
-                />
-                <a href="#" className="link link-primary text-sm font-medium">
-                  Forgot password?
-                </a>
-              </div>
-
               <FormButton fullWidth loading={form.loading}>
                 {form.loading ? LOGIN_CONSTANTS.BUTTON.SIGNING_IN : LOGIN_CONSTANTS.BUTTON.SIGN_IN}
               </FormButton>
             </form>
-
-            <div className="divider text-xs text-base-content/40 my-4">OR</div>
-
-            <div className="bg-base-200 rounded-lg p-4 text-center">
-              <p className="text-sm text-base-content/70 mb-2">{LOGIN_CONSTANTS.FOOTER.NO_ACCOUNT}</p>
-              <p className="text-xs text-base-content/60">
-                {LOGIN_CONSTANTS.FOOTER.REQUEST_ACCESS.split('request access')[0]}
-                <a href="#" className="link link-primary font-medium">
-                  {LOGIN_CONSTANTS.FOOTER.REQUEST_LINK}
-                </a>
-              </p>
-            </div>
           </LoginCard>
 
           <LoginFooter copyrightText={LOGIN_CONSTANTS.FOOTER.COPYRIGHT} />

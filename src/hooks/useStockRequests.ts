@@ -7,7 +7,10 @@ import type {
   StockRequestsResponse,
 } from '../api/types'
 
-export function useStockRequests(initialStatus: StockRequestStatus = 'pending') {
+export function useStockRequests(
+  initialStatus: StockRequestStatus = 'pending',
+  enabled = true,
+) {
   const [requests, setRequests] = useState<StockChangeRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,8 +31,14 @@ export function useStockRequests(initialStatus: StockRequestStatus = 'pending') 
   }, [initialStatus])
 
   useEffect(() => {
+    if (!enabled) {
+      setRequests([])
+      setIsLoading(false)
+      setError(null)
+      return
+    }
     void fetchRequests(initialStatus)
-  }, [fetchRequests, initialStatus])
+  }, [fetchRequests, initialStatus, enabled])
 
   const approveRequest = async (
     id: string,
