@@ -1,7 +1,43 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useStores } from '../hooks/useStores'
 import { useToast } from '../context/ToastContext'
+
+const STORAGE_KEY = 'submittedApprovals'
+const STALE_MS = 10 * 60 * 1000 // 10 minutes
+
+function readStoredIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return new Set()
+    const entries = JSON.parse(raw) as Array<{ id: string; submittedAt: number }>
+    const now = Date.now()
+    return new Set(
+      entries.filter((e) => now - e.submittedAt < STALE_MS).map((e) => e.id),
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function writeStoredId(id: string) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const entries: Array<{ id: string; submittedAt: number }> = raw ? JSON.parse(raw) : []
+    const updated = entries.filter((e) => e.id !== id)
+    updated.push({ id, submittedAt: Date.now() })
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+  } catch { /* ignore */ }
+}
+
+function deleteStoredId(id: string) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const entries: Array<{ id: string; submittedAt: number }> = JSON.parse(raw)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.filter((e) => e.id !== id)))
+  } catch { /* ignore */ }
+}
 
 export function AdminApprovals() {
   const { showToast } = useToast()
@@ -15,26 +51,81 @@ export function AdminApprovals() {
     refetch,
   } = useStockRequests('pending', true)
 
+  const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
+  const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+
+  // bgTick increments whenever localStorage changes, forcing backgroundIds to re-derive
+  const [bgTick, setBgTick] = useState(0)
+  const backgroundIds = useMemo(() => readStoredIds(), [bgTick])
+
   const storeNameById = useMemo(
     () => new Map(stores.map((s) => [s.id, s.name])),
     [stores],
   )
 
+  // When pending list loads, check if any backgroundIds have already been approved
+  useEffect(() => {
+    if (isLoading || backgroundIds.size === 0) return
+    const pendingIdSet = new Set(stockRequests.map((r) => r.id))
+    for (const id of backgroundIds) {
+      if (!pendingIdSet.has(id)) {
+        deleteStoredId(id)
+        setBgTick((t) => t + 1)
+        showToast({ message: 'Approval completed. Stock updated in Loyverse.', durationMs: 6000 })
+      }
+    }
+  }, [isLoading, stockRequests, backgroundIds, showToast])
+
+  // Auto-poll every 15s while there are background approvals in progress
+  useEffect(() => {
+    if (backgroundIds.size === 0) return
+    const interval = setInterval(() => { void refetch('pending') }, 15_000)
+    return () => clearInterval(interval)
+  }, [backgroundIds, refetch])
+
   const handleApprove = async (id: string) => {
+    // Write to localStorage FIRST — survives a Ctrl+R mid-flight
+    writeStoredId(id)
+    setBgTick((t) => t + 1)
+    setApprovingIds((prev) => new Set(prev).add(id))
     try {
       await approveRequest(id, 'Admin')
+      // Success — remove from background tracker, mark done
+      deleteStoredId(id)
+      setBgTick((t) => t + 1)
+      setDoneIds((prev) => new Set(prev).add(id))
       showToast({ message: 'Approved. Stock updated in Loyverse.', durationMs: 6000 })
-    } catch {
-      showToast({ message: 'Failed to approve request.', durationMs: 6000 })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to approve request.'
+      if (msg.includes('Route GET') || msg.includes('timed out')) {
+        // Keep in localStorage — backend is still processing
+        showToast({
+          message: 'Approval submitted. Server is processing — will update in ~1 minute.',
+          durationMs: 15000,
+        })
+      } else {
+        // Real error — remove from localStorage so admin can retry
+        deleteStoredId(id)
+        setBgTick((t) => t + 1)
+        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000 })
+      }
+    } finally {
+      setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }
   }
 
   const handleReject = async (id: string) => {
+    setRejectingIds((prev) => new Set(prev).add(id))
     try {
       await rejectRequest(id, 'Admin')
+      setDoneIds((prev) => new Set(prev).add(id))
       showToast({ message: 'Request rejected.', durationMs: 6000 })
-    } catch {
-      showToast({ message: 'Failed to reject request.', durationMs: 6000 })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to reject request.'
+      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000 })
+    } finally {
+      setRejectingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }
   }
 
@@ -83,41 +174,66 @@ export function AdminApprovals() {
                     </tr>
                   </thead>
                   <tbody>
-                    {stockRequests.map((req) => (
-                      <tr key={req.id} className="border-b border-base-200">
-                        <td className="font-medium text-base-content">{req.itemName}</td>
-                        <td className="text-base-content/80">
-                          {req.storeName ||
-                            storeNameById.get(req.storeId) ||
-                            req.storeId}
-                        </td>
-<td className="text-base-content/70 text-xs whitespace-nowrap">
-  {req.newStock}
-</td>
-                        <td className="text-base-content/70">{req.requestedBy}</td>
-                        <td className="text-base-content/60 text-xs whitespace-nowrap">
-                          {new Date(req.createdAt).toLocaleString()}
-                        </td>
-                        <td>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              className="btn btn-xs btn-success"
-                              onClick={() => handleApprove(req.id)}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-xs btn-error"
-                              onClick={() => handleReject(req.id)}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {stockRequests.map((req) => {
+                      const isApproving = approvingIds.has(req.id)
+                      const isRejecting = rejectingIds.has(req.id)
+                      const isDone = doneIds.has(req.id)
+                      const isBackground = backgroundIds.has(req.id)
+                      const isDisabled = isApproving || isRejecting || isDone || isBackground
+
+                      return (
+                        <tr key={req.id} className="border-b border-base-200">
+                          <td className="font-medium text-base-content">{req.itemName}</td>
+                          <td className="text-base-content/80">
+                            {req.storeName ||
+                              storeNameById.get(req.storeId) ||
+                              req.storeId}
+                          </td>
+                          <td className="text-base-content/70 text-xs whitespace-nowrap">
+                            {req.newStock}
+                          </td>
+                          <td className="text-base-content/70">{req.requestedBy}</td>
+                          <td className="text-base-content/60 text-xs whitespace-nowrap">
+                            {new Date(req.createdAt).toLocaleString()}
+                          </td>
+                          <td>
+                            {isBackground ? (
+                              <span className="flex items-center gap-1.5 text-xs text-base-content/50">
+                                <span className="loading loading-spinner loading-xs" />
+                                Processing…
+                              </span>
+                            ) : (
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-xs btn-success min-w-[72px]"
+                                  disabled={isDisabled}
+                                  onClick={() => void handleApprove(req.id)}
+                                >
+                                  {isApproving ? (
+                                    <span className="loading loading-spinner loading-xs" />
+                                  ) : (
+                                    'Approve'
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-xs btn-error min-w-[60px]"
+                                  disabled={isDisabled}
+                                  onClick={() => void handleReject(req.id)}
+                                >
+                                  {isRejecting ? (
+                                    <span className="loading loading-spinner loading-xs" />
+                                  ) : (
+                                    'Reject'
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

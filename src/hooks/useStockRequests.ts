@@ -15,13 +15,12 @@ export function useStockRequests(
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchRequests = useCallback(async (status: StockRequestStatus = initialStatus) => {
+  const fetchRequests = useCallback(async (status: StockRequestStatus | 'all' = initialStatus) => {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await apiFetchJson<StockRequestsResponse>(
-        `/stock-requests?status=${status}`,
-      )
+      const path = status === 'all' ? '/stock-requests' : `/stock-requests?status=${status}`
+      const response = await apiFetchJson<StockRequestsResponse>(path)
       setRequests(response.requests)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch stock requests')
@@ -47,6 +46,7 @@ export function useStockRequests(
     const response = await apiPostJson<ApproveStockRequestResponse>(
       `/stock-requests/${id}/approve`,
       { reviewedBy },
+      { timeoutMs: 180_000 },
     )
     setRequests((prev) => prev.filter((r) => r.id !== id))
     return response
@@ -57,10 +57,11 @@ export function useStockRequests(
     reviewedBy = 'Admin',
     rejectionReason?: string,
   ): Promise<void> => {
-    await apiPostJson(`/stock-requests/${id}/reject`, {
-      reviewedBy,
-      rejectionReason,
-    })
+    await apiPostJson(
+      `/stock-requests/${id}/reject`,
+      { reviewedBy, rejectionReason },
+      { timeoutMs: 30_000 },
+    )
     setRequests((prev) => prev.filter((r) => r.id !== id))
   }
 

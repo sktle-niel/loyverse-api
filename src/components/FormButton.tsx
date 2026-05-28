@@ -29,10 +29,11 @@ export function FormButton({
   return (
     <button
       type={type}
-      className={`${baseClasses} ${variantClasses[variant]} ${widthClasses} ${loading ? 'loading' : ''}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${widthClasses}`}
       disabled={disabled || loading}
       onClick={onClick}
     >
+      {loading ? <span className="loading loading-spinner loading-sm" /> : null}
       {children}
     </button>
   )

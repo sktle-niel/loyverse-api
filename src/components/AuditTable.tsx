@@ -1,11 +1,7 @@
 // Audit trail table component
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { AuditRecord } from '../api/types'
-
-function getBranchName(branchId?: string): string {
-  if (!branchId) return '—'
-  return branchId
-}
+import { useStores } from '../hooks/useStores'
 
 
 interface AuditTableProps {
@@ -17,6 +13,13 @@ const ITEMS_PER_PAGE = 15
 
 export function AuditTable({ records, isLoading = false }: AuditTableProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const { stores } = useStores()
+  const storeNameById = useMemo(
+    () => new Map(stores.map((s) => [s.id, s.name])),
+    [stores],
+  )
+  const getBranchName = (branchId?: string) =>
+    branchId ? (storeNameById.get(branchId) ?? branchId) : '—'
 
   if (isLoading) {
     return (
