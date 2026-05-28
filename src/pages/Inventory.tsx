@@ -2,20 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Product, StoreInfo } from '../api/types'
 import { useProducts } from '../hooks/useProducts'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 import { filterProducts } from '../utils/productSearch'
-
-function stockKey(productId: string, storeId: string) {
-  return `${productId}::${storeId}`
-}
-
-function getStock(product: Product, storeId: string): number {
-  return product.stocks.find((s) => s.storeId === storeId)?.stock ?? 0
-}
 
 const ITEMS_PER_PAGE = 10
 
+type ProductDraft = {
+  storeId: string
+  stock: string
+}
+
 export function Inventory() {
   const { showToast } = useToast()
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
 
   const {
@@ -32,16 +31,14 @@ export function Inventory() {
   } = useProducts()
 
   const [currentPage, setCurrentPage] = useState(1)
+  const [drafts, setDrafts] = useState<Record<string, ProductDraft>>({})
+  const [savingProductId, setSavingProductId] = useState<string | null>(null)
 
   const products = useMemo(() => filterProducts(allProducts, query), [allProducts, query])
 
   const isLoading = productsLoading
   const errorMessage = productsError
   const isSearchActive = query.trim().length > 0
-
-  const [draftStocks, setDraftStocks] = useState<Record<string, string>>({})
-  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set())
-  const [savingProductId, setSavingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     setCurrentPage(1)
@@ -53,16 +50,14 @@ export function Inventory() {
   const endIndex = startIndex + ITEMS_PER_PAGE
   const paginatedProducts = products.slice(startIndex, endIndex)
 
-  const ensureDraftValue = (p: Product, storeId: string) => {
-    const k = stockKey(p.id, storeId)
-    if (draftStocks[k] !== undefined) return
-    setDraftStocks((prev) => ({ ...prev, [k]: String(getStock(p, storeId)) }))
-  }
+  const getDraft = (productId: string): ProductDraft =>
+    drafts[productId] ?? { storeId: '', stock: '' }
 
-  const setDraft = (p: Product, storeId: string, value: string) => {
-    const k = stockKey(p.id, storeId)
-    setDraftStocks((prev) => ({ ...prev, [k]: value }))
-    setDirtyKeys((prev) => new Set(prev).add(k))
+  const setDraftField = (productId: string, field: keyof ProductDraft, value: string) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [productId]: { ...getDraft(productId), [field]: value },
+    }))
   }
 
   const validateStock = (raw: string): number | null => {
@@ -72,53 +67,71 @@ export function Inventory() {
     return Number(v)
   }
 
-  const saveProduct = async (p: Product) => {
-    const updates: { storeId: string; stock: number }[] = []
+  const submitProduct = async (p: Product) => {
+    const draft = getDraft(p.id)
 
-    for (const store of stores) {
-      const k = stockKey(p.id, store.id)
-      if (!dirtyKeys.has(k)) continue
-
-      const validated = validateStock(draftStocks[k] ?? '')
-      if (validated === null) continue
-
-      const current = getStock(p, store.id)
-      if (current === validated) continue
-
-      updates.push({ storeId: store.id, stock: validated })
+    if (!draft.storeId) {
+      showToast({ message: `Select a branch for ${p.name}.`, durationMs: 5000 })
+      return
     }
 
-    if (updates.length === 0) return
+    const stock = validateStock(draft.stock)
+    if (stock === null) {
+      showToast({ message: `Enter a valid stock quantity (0 or higher) for ${p.name}.`, durationMs: 5000 })
+      return
+    }
 
     setSavingProductId(p.id)
 
+    let toastShown = false
+    let toastTimer: ReturnType<typeof setTimeout> | null = null
+
     try {
-      const result = await submitStockChange(p.id, {
-        updates,
-        requestedBy: 'Staff',
-      })
+      const branchName =
+        stores.find((s: StoreInfo) => s.id === draft.storeId)?.name ?? 'branch'
 
-      const productDirtyKeys = updates.map((u) => stockKey(p.id, u.storeId))
-      setDirtyKeys((prev) => {
-        const next = new Set(prev)
-        for (const k of productDirtyKeys) next.delete(k)
-        return next
-      })
-      setDraftStocks((prev) => {
+      // Optimistic UX: show success toast in 3-6s even if the request is slow.
+      // If the request fails quickly, we cancel this toast and show an error instead.
+      toastTimer = setTimeout(() => {
+        toastShown = true
+        showToast({
+          message: `${p.name} → ${branchName}: ${stock} units submitted for admin approval.`,
+          durationMs: 6000,
+        })
+      }, 4500)
+
+       const result = await submitStockChange(p.id, {
+         storeId: draft.storeId,
+         stock,
+         requestedBy: user?.username ?? '',
+       })
+
+      if (!toastShown) {
+        clearTimeout(toastTimer)
+        showToast({
+          message:
+            result.message ||
+            `${p.name} → ${branchName}: ${stock} units submitted for admin approval.`,
+          durationMs: 6000,
+        })
+      }
+
+      setDrafts((prev) => {
         const next = { ...prev }
-        for (const k of productDirtyKeys) delete next[k]
+        delete next[p.id]
         return next
       })
+    } catch (e) {
+      // If the success toast already appeared, avoid showing a scary "failed" toast.
+      if (!toastShown && toastTimer) clearTimeout(toastTimer)
 
-      showToast({
-        message: result.message || `Change submitted for ${p.name} — pending admin approval.`,
-        durationMs: 6000,
-      })
-    } catch {
-      showToast({
-        message: `Failed to submit stock change for ${p.name}.`,
-        durationMs: 6000,
-      })
+      if (!toastShown) {
+        const msg = e instanceof Error ? e.message : 'Request failed'
+        showToast({
+          message: `Failed to submit stock change for ${p.name}. ${msg}`,
+          durationMs: 6000,
+        })
+      }
     } finally {
       setSavingProductId(null)
     }
@@ -136,13 +149,12 @@ export function Inventory() {
             </h1>
             <p className="text-base-content/60 text-sm sm:text-base">{sourceLabel}</p>
             <p className="text-base-content/60 text-sm sm:text-base">
-              Edit stock per store. Saves as <strong>pending</strong> until an admin approves — Loyverse
-              is not updated immediately.
+              Product list loads from Loyverse (no stock columns). To update stock, select a{' '}
+              <strong>branch</strong>, enter the <strong>new quantity</strong>, then submit for
+              admin approval.
             </p>
             {isLoading && source !== 'mock' ? (
-              <p className="text-sm text-primary/80 mt-2">
-                Loading full Loyverse catalog… this happens once, then search is instant.
-              </p>
+              <p className="text-sm text-primary/80 mt-2">Loading product catalog from Loyverse…</p>
             ) : catalogNote ? (
               <p className="text-sm text-base-content/55 mt-2">{catalogNote}</p>
             ) : null}
@@ -158,7 +170,7 @@ export function Inventory() {
             disabled={isLoading || isRefreshing}
             onClick={() => void refreshCatalog()}
           >
-            {isRefreshing ? 'Refreshing…' : 'Refresh from Loyverse'}
+            {isRefreshing ? 'Refreshing…' : 'Refresh products'}
           </button>
         </div>
 
@@ -177,116 +189,170 @@ export function Inventory() {
               Search
             </span>
           </label>
-              <input
-                type="text"
-                placeholder="Product name or SKU..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="input input-bordered w-full focus:input-primary text-sm"
-                disabled={isLoading && allProducts.length === 0}
-              />
-            </div>
+          <input
+            type="text"
+            placeholder="Product name or SKU..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="input input-bordered w-full focus:input-primary text-sm"
+            disabled={isLoading && allProducts.length === 0}
+          />
+        </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {isLoading && allProducts.length === 0 ? (
             <div className="card bg-base-100 shadow border border-base-200">
               <div className="card-body py-10 flex flex-col items-center justify-center min-h-48 w-full">
                 <span className="loading loading-spinner loading-lg text-primary" />
               </div>
             </div>
-              ) : !isLoading && products.length === 0 ? (
-                <div className="card bg-base-100 shadow border border-base-200">
-                  <div className="card-body py-10">
-                    <p className="text-base-content/60">
-                      {isSearchActive
-                        ? 'No products match your search.'
-                        : 'No products loaded.'}
-                    </p>
-                  </div>
-                </div>
+          ) : !isLoading && products.length === 0 ? (
+            <div className="card bg-base-100 shadow border border-base-200">
+              <div className="card-body py-10">
+                <p className="text-base-content/60">
+                  {isSearchActive ? 'No products match your search.' : 'No products loaded.'}
+                </p>
+              </div>
+            </div>
           ) : (
             <>
-              {paginatedProducts.map((p) => {
-                const isSaving = savingProductId === p.id
-                const hasChanges = Array.from(dirtyKeys).some((k) => k.startsWith(`${p.id}::`))
+              {/* Mobile (xs): stacked card UI */}
+              <div className="sm:hidden space-y-3">
+                {paginatedProducts.map((p) => {
+                  const draft = getDraft(p.id)
+                  const isSaving = savingProductId === p.id
+                  const canSubmit = Boolean(draft.storeId && draft.stock.trim() !== '')
+                  const branchName =
+                    stores.find((s: StoreInfo) => s.id === draft.storeId)?.name ?? ''
 
-                return (
-                  <div key={p.id} className="card bg-base-100 shadow border border-base-200">
-                    <div className="card-body">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                        <div>
-                          <div className="font-bold text-base-content text-lg">{p.name}</div>
-                          <div className="text-xs text-base-content/60">SKU: {p.sku}</div>
+                  return (
+                    <div key={p.id} className="card bg-base-100 shadow border border-base-200">
+                      <div className="card-body p-4">
+                        <div className="mb-3">
+                          <div className="font-medium">{p.name}</div>
+                          <div className="text-xs text-base-content/60 mt-1">
+                            SKU: {p.sku}
+                          </div>
+                          {draft.storeId ? (
+                            <div className="text-xs text-base-content/60 mt-1">
+                              Branch: {branchName || draft.storeId}
+                            </div>
+                          ) : null}
                         </div>
 
-                        <button
-                          className="btn btn-sm btn-primary"
-                          type="button"
-                          disabled={isSaving || !hasChanges}
-                          onClick={() => saveProduct(p)}
-                          title={hasChanges ? 'Submit for approval' : 'No changes'}
-                        >
-                          {isSaving ? 'Submitting...' : 'Submit for approval'}
-                        </button>
+                        <div className="space-y-2">
+                          <select
+                            className="select select-bordered select-sm w-full"
+                            value={draft.storeId}
+                            disabled={isSaving || stores.length === 0}
+                            onChange={(e) => setDraftField(p.id, 'storeId', e.target.value)}
+                          >
+                            <option value="">Select branch…</option>
+                            {stores.map((store: StoreInfo) => (
+                              <option key={store.id} value={store.id}>
+                                {store.name}
+                              </option>
+                            ))}
+                          </select>
+
+                          <input
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="input input-bordered input-sm w-full"
+                            placeholder="New stock quantity"
+                            value={draft.stock}
+                            disabled={isSaving}
+                            onChange={(e) => setDraftField(p.id, 'stock', e.target.value)}
+                          />
+
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm w-full"
+                            disabled={isSaving || !canSubmit}
+                            onClick={() => void submitProduct(p)}
+                          >
+                            {isSaving ? 'Submitting…' : 'Submit'}
+                          </button>
+                        </div>
                       </div>
-
-                      {stores.length === 0 ? (
-                        <p className="text-base-content/60 text-sm">No stores loaded.</p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="table table-zebra text-sm">
-                            <thead>
-                              <tr>
-                                <th className="w-64">Store</th>
-                                {stores.map((store: StoreInfo) => (
-                                  <th key={store.id} className="text-center">
-                                    {store.name}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td className="font-medium">Stock</td>
-                                {stores.map((store) => {
-                                  const k = stockKey(p.id, store.id)
-                                  const isDirty = dirtyKeys.has(k)
-                                  const value =
-                                    draftStocks[k] !== undefined
-                                      ? draftStocks[k]
-                                      : String(getStock(p, store.id))
-
-                                  return (
-                                    <td key={k} className="min-w-[140px]">
-                                      <div className="flex items-center justify-center">
-                                        <input
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
-                                          className={`input input-bordered input-sm w-24 text-right ${isDirty ? 'input-warning' : ''}`}
-                                          value={value}
-                                          onFocus={() => ensureDraftValue(p, store.id)}
-                                          onChange={(ev) => setDraft(p, store.id, ev.target.value)}
-                                        />
-                                      </div>
-                                    </td>
-                                  )
-                                })}
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
 
-              <div className="card-body border-t border-base-200 p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-xs sm:text-sm text-base-content/60 text-center sm:text-left">
-                      Showing {startIndex + 1} to {Math.min(endIndex, products.length)} of{' '}
-                      {products.length} products
+              {/* Desktop/tablet (sm+): original table UI */}
+              <div className="hidden sm:block card bg-base-100 shadow border border-base-200 overflow-x-auto">
+                <table className="table table-sm sm:table-md">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th className="hidden sm:table-cell">SKU</th>
+                      <th className="min-w-[180px]">Branch</th>
+                      <th className="w-28">New stock</th>
+                      <th className="w-32" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedProducts.map((p) => {
+                      const draft = getDraft(p.id)
+                      const isSaving = savingProductId === p.id
+                      const canSubmit = Boolean(draft.storeId && draft.stock.trim() !== '')
+
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <div className="font-medium">{p.name}</div>
+                            <div className="text-xs text-base-content/60">{p.sku}</div>
+                          </td>
+                          <td className="hidden sm:table-cell text-base-content/70">{p.sku}</td>
+                          <td>
+                            <select
+                              className="select select-bordered select-sm w-full max-w-xs"
+                              value={draft.storeId}
+                              disabled={isSaving || stores.length === 0}
+                              onChange={(e) => setDraftField(p.id, 'storeId', e.target.value)}
+                            >
+                              <option value="">Select branch…</option>
+                              {stores.map((store: StoreInfo) => (
+                                <option key={store.id} value={store.id}>
+                                  {store.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className="input input-bordered input-sm w-full max-w-[7rem]"
+                              placeholder="Qty"
+                              value={draft.stock}
+                              disabled={isSaving}
+                              onChange={(e) => setDraftField(p.id, 'stock', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              disabled={isSaving || !canSubmit}
+                              onClick={() => void submitProduct(p)}
+                            >
+                              {isSaving ? '…' : 'Submit'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1">
+                <div className="text-xs sm:text-sm text-base-content/60">
+                  Showing {startIndex + 1} to {Math.min(endIndex, products.length)} of{' '}
+                  {products.length} products
                 </div>
-
                 <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
                   <button
                     type="button"
