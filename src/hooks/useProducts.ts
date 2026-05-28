@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetchJson, apiPatchJson } from '../api/client'
 import type {
   Product,
@@ -18,6 +18,15 @@ export function useProducts() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadingHint, setLoadingHint] = useState<string | null>(null)
+
+  const slowHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const verySlowHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearHintTimers = () => {
+    if (slowHintTimer.current) { clearTimeout(slowHintTimer.current); slowHintTimer.current = null }
+    if (verySlowHintTimer.current) { clearTimeout(verySlowHintTimer.current); verySlowHintTimer.current = null }
+  }
 
   const fetchCatalog = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -26,6 +35,18 @@ export function useProducts() {
       setIsLoading(true)
     }
     setError(null)
+    setLoadingHint(null)
+    clearHintTimers()
+
+    if (!refresh) {
+      slowHintTimer.current = setTimeout(() => {
+        setLoadingHint('Fetching catalog from Loyverse — this can take a minute on first load…')
+      }, 8_000)
+
+      verySlowHintTimer.current = setTimeout(() => {
+        setLoadingHint('Still loading… the server is fetching your full product list from Loyverse.')
+      }, 30_000)
+    }
 
     try {
       const path = refresh ? '/products?refresh=1' : '/products'
@@ -37,13 +58,21 @@ export function useProducts() {
       setCatalogTotal(response.catalogTotal ?? response.products.length)
       setCachedAt(response.cachedAt)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch products')
-      if (!refresh) {
-        setAllProducts([])
-        setCatalogTotal(0)
+      const msg = e instanceof Error ? e.message : 'Failed to fetch products'
+      const isServerWakingUp = msg.includes('Route GET') || msg.includes('timed out')
+      if (isServerWakingUp) {
+        setError('Server is starting up — the catalog may take a minute to load. Please wait and try refreshing again.')
+      } else {
+        setError(msg)
+        if (!refresh) {
+          setAllProducts([])
+          setCatalogTotal(0)
+        }
+        setCatalogNote(undefined)
       }
-      setCatalogNote(undefined)
     } finally {
+      clearHintTimers()
+      setLoadingHint(null)
       setIsLoading(false)
       setIsRefreshing(false)
     }
@@ -76,6 +105,7 @@ export function useProducts() {
     isLoading,
     isRefreshing,
     error,
+    loadingHint,
     submitStockChange,
     refreshCatalog: () => fetchCatalog(true),
   }

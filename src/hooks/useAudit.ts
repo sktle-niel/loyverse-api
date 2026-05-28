@@ -13,7 +13,7 @@ export function useAudit() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await apiFetchJson<AuditResponse>('/audit')
+        const response = await apiFetchJson<AuditResponse>('/audit', { timeoutMs: 45_000 })
         setAuditRecords(response.records)
         setSource(response.source)
       } catch (e) {

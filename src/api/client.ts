@@ -30,6 +30,10 @@ function buildHeaders(): Record<string, string> {
 
 const DEFAULT_TIMEOUT_MS = 15000
 
+function buildTimeoutMessage(): string {
+  return 'Request timed out. The server may be starting up — this can take up to a minute. Please wait and try again.'
+}
+
 async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit,
@@ -54,15 +58,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
     const text = await res.text().catch(() => '')
     let message = text || res.statusText
     try {
-      const json = JSON.parse(text) as { error?: string }
-      if (json.error) message = json.error
+      const json = JSON.parse(text) as { message?: string; error?: string }
+      if (json.message) message = json.message
+      else if (json.error) message = json.error
     } catch {
       /* use raw text */
-    }
-    if (res.status === 404) {
-      throw new Error(
-        'API route not found (404). Deploy the latest backend with auth routes, or check VITE_API_BASE_URL ends with /api.',
-      )
     }
     throw new Error(message || `API request failed (${res.status})`)
   }
@@ -87,7 +87,7 @@ export async function apiFetchJson<T>(path: string, options?: RequestOptions): P
     )
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('Request timed out. Is the backend running on localhost:3001?')
+      throw new Error(buildTimeoutMessage())
     }
     throw e
   }
@@ -112,7 +112,7 @@ export async function apiPatchJson<T>(
     }, options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('Request timed out. Is the backend running on localhost:3001?')
+      throw new Error(buildTimeoutMessage())
     }
     throw e
   }
@@ -137,7 +137,7 @@ export async function apiPostJson<T>(
     }, options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('Request timed out. Is the backend running on localhost:3001?')
+      throw new Error(buildTimeoutMessage())
     }
     throw e
   }

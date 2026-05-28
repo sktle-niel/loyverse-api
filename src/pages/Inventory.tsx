@@ -26,6 +26,7 @@ export function Inventory() {
     isLoading: productsLoading,
     isRefreshing,
     error: productsError,
+    loadingHint,
     submitStockChange,
     refreshCatalog,
   } = useProducts()
@@ -149,12 +150,14 @@ export function Inventory() {
             </h1>
             <p className="text-base-content/60 text-sm sm:text-base">{sourceLabel}</p>
             <p className="text-base-content/60 text-sm sm:text-base">
-              Product list loads from Loyverse (no stock columns). To update stock, select a{' '}
-              <strong>branch</strong>, enter the <strong>new quantity</strong>, then submit for
+              To update stock, select a{' '}
+              <strong>branch</strong>, enter the <strong>quantity to add</strong>, then submit for
               admin approval.
             </p>
-            {isLoading && source !== 'mock' ? (
-              <p className="text-sm text-primary/80 mt-2">Loading product catalog from Loyverse…</p>
+            {isLoading ? (
+              <p className="text-sm text-primary/80 mt-2">
+                {loadingHint ?? 'Loading product catalog from Loyverse…'}
+              </p>
             ) : catalogNote ? (
               <p className="text-sm text-base-content/55 mt-2">{catalogNote}</p>
             ) : null}
@@ -259,7 +262,7 @@ export function Inventory() {
                             inputMode="numeric"
                             pattern="[0-9]*"
                             className="input input-bordered input-sm w-full"
-                            placeholder="New stock quantity"
+                            placeholder="Qty to add"
                             value={draft.stock}
                             disabled={isSaving}
                             onChange={(e) => setDraftField(p.id, 'stock', e.target.value)}
@@ -285,11 +288,11 @@ export function Inventory() {
                 <table className="table table-sm sm:table-md">
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th className="hidden sm:table-cell">SKU</th>
-                      <th className="min-w-[180px]">Branch</th>
-                      <th className="w-28">New stock</th>
-                      <th className="w-32" />
+                      <th className="w-[40%]">Product</th>
+                      <th className="w-24">SKU</th>
+                      <th>Branch</th>
+                      <th className="w-36 sm:w-44">Add qty</th>
+                      <th className="w-24" />
                     </tr>
                   </thead>
                   <tbody>
@@ -300,11 +303,10 @@ export function Inventory() {
 
                       return (
                         <tr key={p.id}>
-                          <td>
-                            <div className="font-medium">{p.name}</div>
-                            <div className="text-xs text-base-content/60">{p.sku}</div>
+                          <td className="max-w-0">
+                            <div className="font-medium truncate">{p.name}</div>
                           </td>
-                          <td className="hidden sm:table-cell text-base-content/70">{p.sku}</td>
+                          <td className="text-base-content/70 text-xs">{p.sku}</td>
                           <td>
                             <select
                               className="select select-bordered select-sm w-full max-w-xs"
@@ -324,8 +326,8 @@ export function Inventory() {
                             <input
                               inputMode="numeric"
                               pattern="[0-9]*"
-                              className="input input-bordered input-sm w-full max-w-[7rem]"
-                              placeholder="Qty"
+                              className="input input-bordered input-sm w-full"
+                              placeholder="Qty to add"
                               value={draft.stock}
                               disabled={isSaving}
                               onChange={(e) => setDraftField(p.id, 'stock', e.target.value)}

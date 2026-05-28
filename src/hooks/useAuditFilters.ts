@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { AuditRecord } from '../components/AuditTable'
+import { useStores } from './useStores'
 
 interface UseAuditFiltersReturn {
   filteredRecords: AuditRecord[]
@@ -15,20 +16,28 @@ interface UseAuditFiltersReturn {
 
 export function useAuditFilters(records: AuditRecord[]): UseAuditFiltersReturn {
   const safeRecords = records ?? []
+  const { stores } = useStores()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [branchId, setBranchId] = useState('')
   const [direction, setDirection] = useState<'all' | 'decrease' | 'increase'>('all')
 
+  const storeNameById = useMemo(
+    () => new Map(stores.map((s) => [s.id, s.name])),
+    [stores],
+  )
+
   const branches = useMemo(() => {
-    const map = new Map<string, string>()
+    const seen = new Set<string>()
+    const result: { id: string; name: string }[] = []
     for (const r of safeRecords) {
-      if (r.branchId && !map.has(r.branchId)) {
-        map.set(r.branchId, r.branchId)
+      if (r.branchId && !seen.has(r.branchId)) {
+        seen.add(r.branchId)
+        result.push({ id: r.branchId, name: storeNameById.get(r.branchId) ?? r.branchId })
       }
     }
-    return [...map.entries()].map(([id, name]) => ({ id, name }))
-  }, [safeRecords])
+    return result.sort((a, b) => a.name.localeCompare(b.name))
+  }, [safeRecords, storeNameById])
 
   const filteredRecords = safeRecords.filter((record) => {
     const searchMatch =

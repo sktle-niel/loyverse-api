@@ -5,11 +5,13 @@ import { Dashboard } from '../pages/Dashboard'
 import { Inventory } from '../pages/Inventory'
 import { AdminApprovals } from '../pages/AdminApprovals'
 import { AdminOperators } from '../pages/AdminOperators'
+import { History } from '../pages/History'
+import { OperatorQueue } from '../pages/OperatorQueue'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/sidebar.css'
 
-const ADMIN_ONLY_PAGES = new Set(['dashboard', 'approvals', 'operators'])
+const ADMIN_ONLY_PAGES = new Set(['dashboard', 'approvals', 'history', 'operators'])
 
 function normalizePage(page: string, isAdmin: boolean): string {
   if (!isAdmin && ADMIN_ONLY_PAGES.has(page)) {
@@ -63,6 +65,10 @@ export function MainLayout() {
         return isAdmin ? <Dashboard /> : <Inventory />
       case 'approvals':
         return isAdmin ? <AdminApprovals /> : <Inventory />
+      case 'queue':
+        return !isAdmin ? <OperatorQueue /> : <Dashboard />
+      case 'history':
+        return isAdmin ? <History /> : <Inventory />
       case 'operators':
         return isAdmin ? <AdminOperators /> : <Inventory />
       default:
