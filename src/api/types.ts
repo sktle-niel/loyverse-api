@@ -28,7 +28,6 @@ export interface AuditRecord {
   id: string
   itemName: string
   adminName: string
-  oldStock: number
   newStock: number
   changeAmount: number
   timestamp: string
@@ -96,7 +95,11 @@ export interface StockUpdateInput {
 }
 
 export interface SubmitStockRequestBody {
-  updates: StockUpdateInput[]
+  /** Preferred: one branch per request */
+  storeId?: string
+  stock?: number
+  /** Legacy */
+  updates?: StockUpdateInput[]
   requestedBy?: string
 }
 
@@ -108,7 +111,6 @@ export interface SubmitStockRequestResponse {
 export interface StockRequestLine {
   storeId: string
   storeName: string
-  oldStock: number
   newStock: number
 }
 
@@ -120,6 +122,10 @@ export interface StockChangeRequest {
   variantId: string
   itemName: string
   sku: string
+  storeId: string
+  storeName: string
+  changeAmount: number
+  newStock: number
   requestedBy: string
   status: StockRequestStatus
   lines: StockRequestLine[]

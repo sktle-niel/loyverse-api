@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { useStockRequests } from '../hooks/useStockRequests'
-import { useProducts } from '../hooks/useProducts'
+import { useStores } from '../hooks/useStores'
 import { useToast } from '../context/ToastContext'
 
 export function AdminApprovals() {
   const { showToast } = useToast()
-  const { stores } = useProducts()
+  const { stores } = useStores()
   const {
     requests: stockRequests,
     isLoading,
@@ -75,7 +75,8 @@ export function AdminApprovals() {
                   <thead className="bg-base-200">
                     <tr>
                       <th>Item</th>
-                      <th>Changes</th>
+                      <th>Branch</th>
+                      <th>Stock change</th>
                       <th>Requested by</th>
                       <th>When</th>
                       <th>Actions</th>
@@ -85,16 +86,14 @@ export function AdminApprovals() {
                     {stockRequests.map((req) => (
                       <tr key={req.id} className="border-b border-base-200">
                         <td className="font-medium text-base-content">{req.itemName}</td>
-                        <td className="text-base-content/70 text-xs">
-                          <ul className="list-disc list-inside space-y-1">
-                            {req.lines.map((line) => (
-                              <li key={`${req.id}-${line.storeId}`}>
-                                {line.storeName || storeNameById.get(line.storeId) || line.storeId}:{' '}
-                                {line.oldStock} → {line.newStock}
-                              </li>
-                            ))}
-                          </ul>
+                        <td className="text-base-content/80">
+                          {req.storeName ||
+                            storeNameById.get(req.storeId) ||
+                            req.storeId}
                         </td>
+<td className="text-base-content/70 text-xs whitespace-nowrap">
+  {req.newStock}
+</td>
                         <td className="text-base-content/70">{req.requestedBy}</td>
                         <td className="text-base-content/60 text-xs whitespace-nowrap">
                           {new Date(req.createdAt).toLocaleString()}

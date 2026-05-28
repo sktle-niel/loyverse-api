@@ -29,7 +29,7 @@ export function useProducts() {
 
     try {
       const path = refresh ? '/products?refresh=1' : '/products'
-      const response = await apiFetchJson<ProductsResponse>(path, { timeoutMs: 300_000 })
+      const response = await apiFetchJson<ProductsResponse>(path, { timeoutMs: 120_000 })
       setAllProducts(response.products)
       setStores(response.stores)
       setSource(response.source)
@@ -57,7 +57,13 @@ export function useProducts() {
     itemId: string,
     body: SubmitStockRequestBody,
   ): Promise<SubmitStockRequestResponse> => {
-    return apiPatchJson<SubmitStockRequestResponse>(`/products/${itemId}/stock`, body)
+    const payload =
+      body.storeId != null && body.stock != null
+        ? { storeId: body.storeId, stock: body.stock, requestedBy: body.requestedBy }
+        : body
+    return apiPatchJson<SubmitStockRequestResponse>(`/products/${itemId}/stock`, payload, {
+      timeoutMs: 60_000,
+    })
   }
 
   return {
