@@ -114,7 +114,7 @@ export interface StockRequestLine {
   newStock: number
 }
 
-export type StockRequestStatus = 'pending' | 'approved' | 'rejected'
+export type StockRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface StockChangeRequest {
   id: string

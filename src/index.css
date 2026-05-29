@@ -77,3 +77,9 @@ body {
   background-color: color-mix(in oklab, var(--color-warning) 12%, transparent);
   border-color: color-mix(in oklab, var(--color-warning) 25%, transparent);
 }
+.status-badge-cancelled {
+  color: var(--color-base-content);
+  opacity: 0.5;
+  background-color: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  border-color: color-mix(in oklab, var(--color-base-content) 15%, transparent);
+}
