@@ -2,22 +2,25 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMyStockRequests } from '../hooks/useMyStockRequests'
 import { useStores } from '../hooks/useStores'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
-type Tab = 'all' | 'pending' | 'approved' | 'rejected'
+type Tab = 'all' | 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 const ITEMS_PER_PAGE = 20
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'approved', label: 'Approved' },
-  { id: 'rejected', label: 'Rejected' },
+  { id: 'all',       label: 'All' },
+  { id: 'pending',   label: 'Pending' },
+  { id: 'approved',  label: 'Approved' },
+  { id: 'rejected',  label: 'Rejected' },
+  { id: 'cancelled', label: 'Cancelled' },
 ]
 
 const STATUS_CLASSES: Record<string, string> = {
-  approved: 'status-badge status-badge-approved',
-  rejected: 'status-badge status-badge-rejected',
-  pending:  'status-badge status-badge-pending',
+  approved:  'status-badge status-badge-approved',
+  rejected:  'status-badge status-badge-rejected',
+  pending:   'status-badge status-badge-pending',
+  cancelled: 'status-badge status-badge-cancelled',
 }
 
 function SkeletonRow({ cols }: { cols: number }) {
@@ -34,10 +37,12 @@ function SkeletonRow({ cols }: { cols: number }) {
 
 export function OperatorQueue() {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set())
 
-  const { requests, isLoading, error, refetch } = useMyStockRequests(activeTab)
+  const { requests, isLoading, error, refetch, cancelRequest } = useMyStockRequests(activeTab)
   const { stores } = useStores()
 
   const storeNameById = useMemo(
@@ -59,6 +64,22 @@ export function OperatorQueue() {
     void refetch(tab)
   }
 
+  const handleCancel = async (id: string) => {
+    setCancellingIds((prev) => new Set(prev).add(id))
+    try {
+      await cancelRequest(id)
+      showToast({ message: 'Request cancelled.', durationMs: 5000 })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to cancel request.'
+      showToast({ message: `Cancel failed: ${msg}`, durationMs: 6000 })
+    } finally {
+      setCancellingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    }
+  }
+
+  const showCancelColumn = activeTab === 'all' || activeTab === 'pending'
+  const colSpan = showCancelColumn ? 7 : 6
+
   return (
     <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
@@ -74,13 +95,13 @@ export function OperatorQueue() {
         </header>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 mb-5 border-b border-base-content/8 pb-0">
+        <div className="flex items-center gap-1 mb-5 border-b border-base-content/8 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => handleTabChange(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-all duration-150 border-b-2 -mb-px ${
+              className={`px-4 py-2.5 text-sm font-medium transition-all duration-150 border-b-2 -mb-px whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'text-primary border-primary'
                   : 'text-base-content/45 border-transparent hover:text-base-content hover:border-base-content/20'
@@ -111,40 +132,69 @@ export function OperatorQueue() {
                   <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Status</th>
                   <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Reviewed by</th>
                   <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Date</th>
+                  {showCancelColumn && <th className="py-3 px-4 w-20" />}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
+                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={colSpan} />)
                 ) : requests.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-sm text-base-content/40">
+                    <td colSpan={colSpan} className="py-16 text-center text-sm text-base-content/40">
                       No requests found.
                     </td>
                   </tr>
                 ) : (
-                  paginatedRequests.map((req, index) => (
-                    <tr
-                      key={req.id}
-                      className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
-                      style={{ animationDelay: `${index * 25}ms` }}
-                    >
-                      <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
-                      <td className="py-3.5 px-4 text-base-content/60">
-                        {req.storeName || storeNameById.get(req.storeId) || req.storeId}
-                      </td>
-                      <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{req.newStock}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={STATUS_CLASSES[req.status] ?? STATUS_CLASSES.pending}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-base-content/45 text-xs">{req.reviewedBy ?? '—'}</td>
-                      <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">
-                        {new Date(req.createdAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
+                  paginatedRequests.map((req, index) => {
+                    const isCancelling = cancellingIds.has(req.id)
+                    const canCancel = req.status === 'pending' && showCancelColumn
+
+                    return (
+                      <tr
+                        key={req.id}
+                        className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                        style={{ animationDelay: `${index * 25}ms` }}
+                      >
+                        <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
+                        <td className="py-3.5 px-4 text-base-content/60">
+                          {req.storeName || storeNameById.get(req.storeId) || req.storeId}
+                        </td>
+                        <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{req.newStock}</td>
+                        <td className="py-3.5 px-4">
+                          <span className={STATUS_CLASSES[req.status] ?? STATUS_CLASSES.pending}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-base-content/45 text-xs">{req.reviewedBy ?? '—'}</td>
+                        <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">
+                          {new Date(req.createdAt).toLocaleString()}
+                        </td>
+                        {showCancelColumn && (
+                          <td className="py-3.5 px-4">
+                            {canCancel ? (
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-base-content/6 text-base-content/50 border border-base-content/10 hover:bg-error/10 hover:text-error hover:border-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled={isCancelling}
+                                onClick={() => void handleCancel(req.id)}
+                              >
+                                {isCancelling ? (
+                                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                )}
+                                Cancel
+                              </button>
+                            ) : null}
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>

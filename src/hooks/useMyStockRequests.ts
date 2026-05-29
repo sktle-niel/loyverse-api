@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiFetchJson } from '../api/client'
+import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockChangeRequest, StockRequestStatus, StockRequestsResponse } from '../api/types'
 
 type TabStatus = StockRequestStatus | 'all'
@@ -30,5 +30,10 @@ export function useMyStockRequests(initialStatus: TabStatus = 'all') {
     void fetchRequests(initialStatus)
   }, [fetchRequests, initialStatus])
 
-  return { requests, isLoading, error, refetch: fetchRequests }
+  const cancelRequest = async (id: string): Promise<void> => {
+    await apiPostJson(`/stock-requests/${id}/cancel`, {}, { timeoutMs: 30_000 })
+    setRequests((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  return { requests, isLoading, error, refetch: fetchRequests, cancelRequest }
 }
