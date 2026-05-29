@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { AuditRecord } from '../components/AuditTable'
+import type { AuditRecord } from '../api/types'
 import { useStores } from './useStores'
 
 interface UseAuditFiltersReturn {

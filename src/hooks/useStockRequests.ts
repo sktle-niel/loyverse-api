@@ -8,7 +8,7 @@ import type {
 } from '../api/types'
 
 export function useStockRequests(
-  initialStatus: StockRequestStatus = 'pending',
+  initialStatus: StockRequestStatus | 'all' = 'pending',
   enabled = true,
 ) {
   const [requests, setRequests] = useState<StockChangeRequest[]>([])
