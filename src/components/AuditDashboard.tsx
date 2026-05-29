@@ -1,7 +1,8 @@
 // Main audit dashboard component
 import { useState } from 'react'
 import { AuditFilters } from './AuditFilters'
-import { AuditTable, type AuditRecord } from './AuditTable'
+import type { AuditRecord } from '../api/types'
+import { AuditTable } from './AuditTable'
 import { useAuditFilters } from '../hooks/useAuditFilters'
 
 
