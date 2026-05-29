@@ -6,16 +6,17 @@ import { useToast } from '../context/ToastContext'
 
 function UsersIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.48-3.397M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-      />
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
     </svg>
   )
 }
+
+const inputClass = 'w-full rounded-lg border border-base-content/12 bg-base-200/50 px-3.5 py-2.5 text-sm text-base-content placeholder:text-base-content/30 transition-colors duration-150 outline-none focus:border-primary/60 focus:bg-base-200'
+const labelClass = 'block text-xs font-medium text-base-content/60 mb-1.5'
+const hintClass = 'mt-1.5 text-xs text-base-content/35'
 
 export function AdminOperators() {
   const { showToast } = useToast()
@@ -34,11 +35,18 @@ export function AdminOperators() {
     }
   }, [username, displayName])
 
+  const handleClear = () => {
+    setEmail('')
+    setUsername('')
+    setPassword('')
+    setDisplayName('')
+    setFormError(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
     setSaving(true)
-
     try {
       await apiPostJson<{ operator: PublicUser; message: string }>('/users/operators', {
         email: email.trim(),
@@ -46,10 +54,7 @@ export function AdminOperators() {
         password,
         displayName: displayName.trim() || username.trim(),
       })
-      setEmail('')
-      setUsername('')
-      setPassword('')
-      setDisplayName('')
+      handleClear()
       await refetch()
       showToast({ message: 'Operator account created.', durationMs: 6000 })
     } catch (err) {
@@ -60,155 +65,103 @@ export function AdminOperators() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
+    <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
-        <header className="border-b border-base-300 pb-6 mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-base-content/50 mb-1">
-                Administration
-              </p>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content tracking-tight">
-                Operator accounts
-              </h1>
-              <p className="text-base-content/60 text-sm sm:text-base mt-2 max-w-2xl">
-                Create accounts for store staff. Operators sign in with <strong>username</strong> or{' '}
-                <strong>email</strong> and only access inventory.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-outline btn-sm shrink-0"
-              onClick={() => void refetch()}
-              disabled={isLoading}
-            >
-              Refresh list
-            </button>
+        <header className="mb-7 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Administration</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Operator accounts</h1>
+            <p className="text-sm text-base-content/45 mt-1 max-w-xl">
+              Create accounts for store staff. Operators sign in with <strong className="text-base-content/70 font-medium">username</strong> or{' '}
+              <strong className="text-base-content/70 font-medium">email</strong> and only access inventory.
+            </p>
           </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
+            onClick={() => void refetch()}
+            disabled={isLoading}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+            Refresh
+          </button>
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
-          {/* Create form — left on xl */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* Create form */}
           <section className="xl:col-span-5">
-            <div className="card bg-base-100 shadow border border-base-200 h-full">
-              <div className="card-body p-5 sm:p-6">
-                <div className="flex items-start gap-3 mb-6">
-                  <div className="rounded-lg bg-primary/10 p-2.5 text-primary shrink-0">
-                    <UsersIcon className="w-5 h-5" />
+            <div className="rounded-xl border border-base-content/8 bg-base-100 h-full">
+              <div className="px-6 py-5 border-b border-base-content/8">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <UsersIcon className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-base-content">New operator</h2>
-                    <p className="text-sm text-base-content/55 mt-0.5">
-                      All fields except display name are required.
-                    </p>
+                    <h2 className="text-sm font-semibold text-base-content">New operator</h2>
+                    <p className="text-xs text-base-content/45 mt-0.5">All fields except display name are required</p>
                   </div>
                 </div>
+              </div>
 
+              <div className="px-6 py-6">
                 {formError ? (
-                  <div role="alert" className="alert alert-error text-sm mb-6 py-3">
+                  <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-3.5 py-3 text-sm text-error mb-5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
                     <span>{formError}</span>
                   </div>
                 ) : null}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="form-control w-full">
-                    <label className="label pt-0 pb-1" htmlFor="op-email">
-                      <span className="label-text font-medium text-base-content">Work email</span>
-                    </label>
-                    <input
-                      id="op-email"
-                      type="email"
-                      autoComplete="email"
-                      className="input input-bordered w-full bg-base-100"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@company.com"
-                      required
-                    />
-                    <p className="text-xs text-base-content/50 mt-1.5 px-0.5">
-                      Used for sign-in (same as username).
-                    </p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className={labelClass} htmlFor="op-email">Work email</label>
+                    <input id="op-email" type="email" autoComplete="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" required />
+                    <p className={hintClass}>Used for sign-in alongside username.</p>
                   </div>
 
-                  <div className="form-control w-full">
-                    <label className="label pt-0 pb-1" htmlFor="op-username">
-                      <span className="label-text font-medium text-base-content">Username</span>
-                    </label>
-                    <input
-                      id="op-username"
-                      type="text"
-                      autoComplete="username"
-                      className="input input-bordered w-full bg-base-100 font-mono text-sm"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="e.g. maria.store"
-                      required
-                      minLength={3}
-                    />
-                    <p className="text-xs text-base-content/50 mt-1.5 px-0.5">
-                      Lowercase letters, numbers, dots, hyphens, underscores (min 3).
-                    </p>
+                  <div>
+                    <label className={labelClass} htmlFor="op-username">Username</label>
+                    <input id="op-username" type="text" autoComplete="username" className={`${inputClass} font-mono`} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. maria.store" required minLength={3} />
+                    <p className={hintClass}>Lowercase, dots, hyphens, underscores (min 3 chars).</p>
                   </div>
 
-                  <div className="form-control w-full">
-                    <label className="label pt-0 pb-1" htmlFor="op-display">
-                      <span className="label-text font-medium text-base-content">
-                        Display name
-                        <span className="text-base-content/45 font-normal"> (optional)</span>
-                      </span>
+                  <div>
+                    <label className={labelClass} htmlFor="op-display">
+                      Display name{' '}
+                      <span className="text-base-content/30 font-normal">(optional)</span>
                     </label>
-                    <input
-                      id="op-display"
-                      type="text"
-                      autoComplete="name"
-                      className="input input-bordered w-full bg-base-100"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Shown in sidebar after login"
-                    />
+                    <input id="op-display" type="text" autoComplete="name" className={inputClass} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Shown in sidebar after login" />
                   </div>
 
-                  <div className="form-control w-full">
-                    <label className="label pt-0 pb-1" htmlFor="op-password">
-                      <span className="label-text font-medium text-base-content">Initial password</span>
-                    </label>
-                    <input
-                      id="op-password"
-                      type="password"
-                      autoComplete="new-password"
-                      className="input input-bordered w-full bg-base-100"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Minimum 8 characters"
-                      required
-                      minLength={8}
-                    />
-                    <p className="text-xs text-base-content/50 mt-1.5 px-0.5">
-                      Share this securely with the operator; they can change it later if you add that flow.
-                    </p>
+                  <div>
+                    <label className={labelClass} htmlFor="op-password">Initial password</label>
+                    <input id="op-password" type="password" autoComplete="new-password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimum 8 characters" required minLength={8} />
+                    <p className={hintClass}>Share this securely with the operator.</p>
                   </div>
 
-                  <div className="divider my-2 opacity-50" />
-
-                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
+                  <div className="pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm sm:btn-md"
+                      className="btn btn-sm btn-ghost text-base-content/50"
                       disabled={saving}
-                      onClick={() => {
-                        setEmail('')
-                        setUsername('')
-                        setPassword('')
-                        setDisplayName('')
-                        setFormError(null)
-                      }}
+                      onClick={handleClear}
                     >
-                      Clear form
+                      Clear
                     </button>
-                    <button type="submit" className="btn btn-primary sm:btn-md min-w-[9rem]" disabled={saving}>
+                    <button
+                      type="submit"
+                      className="btn btn-sm btn-primary min-w-[8rem]"
+                      disabled={saving}
+                    >
                       {saving ? (
                         <>
-                          <span className="loading loading-spinner loading-sm" />
+                          <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                          </svg>
                           Creating…
                         </>
                       ) : (
@@ -221,61 +174,70 @@ export function AdminOperators() {
             </div>
           </section>
 
-          {/* Operator list — right on xl */}
+          {/* Operator list */}
           <section className="xl:col-span-7 min-w-0">
-            <div className="card bg-base-100 shadow border border-base-200 h-full flex flex-col">
-              <div className="card-body p-5 sm:p-6 flex flex-col flex-1 min-h-[16rem]">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-base-content">Team directory</h2>
-                    <p className="text-sm text-base-content/55 mt-0.5">Active operator accounts</p>
-                  </div>
-                  <span className="badge badge-neutral badge-outline font-mono text-xs">
-                    {operators.length} {operators.length === 1 ? 'operator' : 'operators'}
-                  </span>
+            <div className="rounded-xl border border-base-content/8 bg-base-100 h-full flex flex-col">
+              <div className="px-6 py-5 border-b border-base-content/8 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-base-content">Team directory</h2>
+                  <p className="text-xs text-base-content/45 mt-0.5">Active operator accounts</p>
                 </div>
+                <span className="text-xs font-medium text-base-content/40 tabular bg-base-content/6 px-2.5 py-1 rounded-full">
+                  {operators.length} {operators.length === 1 ? 'operator' : 'operators'}
+                </span>
+              </div>
 
+              <div className="flex-1 min-h-[16rem]">
                 {error ? (
-                  <div role="alert" className="alert alert-error text-sm shrink-0">
+                  <div role="alert" className="m-5 flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-3.5 py-3 text-sm text-error">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
                     <span>{error}</span>
                   </div>
                 ) : isLoading ? (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
-                    <span className="loading loading-spinner loading-lg text-primary" />
-                    <p className="text-sm text-base-content/50">Loading operators…</p>
+                  <div className="flex flex-col items-center justify-center gap-3 py-16">
+                    <svg className="animate-spin text-primary" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-xs text-base-content/40">Loading operators…</p>
                   </div>
                 ) : operators.length === 0 ? (
-                  <div className="flex flex-1 flex-col items-center justify-center rounded-box border border-dashed border-base-300 bg-base-200/40 px-6 py-14 text-center">
-                    <div className="rounded-full bg-base-300/50 p-4 text-base-content/35 mb-4">
-                      <UsersIcon className="w-10 h-10" />
+                  <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-base-content/6 flex items-center justify-center mb-4">
+                      <UsersIcon className="w-6 h-6 text-base-content/30" />
                     </div>
-                    <p className="font-medium text-base-content">No operators yet</p>
-                    <p className="text-sm text-base-content/55 max-w-sm mt-1">
-                      When you create an account with the form, it will appear here with username and email.
+                    <p className="text-sm font-medium text-base-content/60">No operators yet</p>
+                    <p className="text-xs text-base-content/35 mt-1 max-w-xs">
+                      Create an account with the form and it will appear here.
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border border-base-200 -mx-0.5">
-                    <table className="table table-sm sm:table-md text-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-base-200 text-base-content/80">
-                          <th className="font-semibold">Display name</th>
-                          <th className="font-semibold">Username</th>
-                          <th className="font-semibold">Email</th>
-                          <th className="font-semibold whitespace-nowrap w-1">Created</th>
+                        <tr className="border-b border-base-content/8 bg-base-content/3">
+                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Display name</th>
+                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Username</th>
+                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Email</th>
+                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">Created</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {operators.map((op) => (
-                          <tr key={op.id} className="hover:bg-base-200/50 border-b border-base-200 last:border-0">
-                            <td className="font-medium text-base-content">{op.displayName}</td>
-                            <td>
-                              <code className="text-xs bg-base-200 px-1.5 py-0.5 rounded">{op.username}</code>
+                        {operators.map((op, index) => (
+                          <tr
+                            key={op.id}
+                            className="border-b border-base-content/6 last:border-0 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                            style={{ animationDelay: `${index * 25}ms` }}
+                          >
+                            <td className="py-3.5 px-4 font-medium text-base-content">{op.displayName}</td>
+                            <td className="py-3.5 px-4">
+                              <code className="text-xs font-mono bg-base-content/8 px-1.5 py-0.5 rounded text-base-content/70">{op.username}</code>
                             </td>
-                            <td className="text-base-content/80 max-w-[12rem] truncate" title={op.email}>
+                            <td className="py-3.5 px-4 text-base-content/55 text-xs max-w-[12rem] truncate" title={op.email}>
                               {op.email}
                             </td>
-                            <td className="text-xs text-base-content/50 whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-base-content/40 text-xs tabular whitespace-nowrap">
                               {new Date(op.createdAt).toLocaleString()}
                             </td>
                           </tr>
@@ -289,6 +251,6 @@ export function AdminOperators() {
           </section>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

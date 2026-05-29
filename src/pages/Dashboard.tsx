@@ -1,4 +1,3 @@
-// Dashboard page - Audit trail
 import { useMemo } from 'react'
 import { AuditFilters } from '../components/AuditFilters'
 import { AuditTable } from '../components/AuditTable'
@@ -22,30 +21,21 @@ export function Dashboard() {
 
   const sourceText = useMemo(() => {
     switch (source) {
-      case 'mysql':
-        return 'From approved requests (MySQL)'
-      case 'loyverse':
-        return 'Live from Loyverse'
-      default:
-        return 'Mock data'
+      case 'mysql': return 'From approved requests'
+      case 'loyverse': return 'Live from Loyverse'
+      default: return 'Mock data'
     }
   }, [source])
 
   return (
-    <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
+    <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content mb-2">
-            Audit Trail
-          </h1>
-          <p className="text-base-content/60 text-sm sm:text-base">{sourceText}</p>
-          <p className="text-base-content/60 text-sm sm:text-base">
-            Monitor stock changes made by admins
-          </p>
-        </div>
+        <header className="mb-7">
+          <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Admin</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Audit trail</h1>
+          <p className="text-sm text-base-content/45 mt-1">{sourceText} · monitor stock changes made by admins</p>
+        </header>
 
-        {/* Filters */}
         <AuditFilters
           searchTerm={searchTerm}
           onSearchChange={onSearchChange}
@@ -58,17 +48,19 @@ export function Dashboard() {
         />
 
         {error ? (
-          <div className="alert alert-error mb-4">
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-4 py-3 text-sm text-error mb-5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             <div>
-              <div className="font-semibold">Failed to load audit data</div>
-              <div className="text-xs">{error}</div>
+              <p className="font-medium">Failed to load audit data</p>
+              <p className="text-xs mt-0.5 text-error/70">{error}</p>
             </div>
           </div>
         ) : null}
 
-        {/* Audit Table */}
         <AuditTable records={searchFilteredRecords} isLoading={isLoading} />
       </div>
-    </div>
+    </main>
   )
 }

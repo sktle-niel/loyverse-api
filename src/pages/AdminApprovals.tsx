@@ -4,7 +4,7 @@ import { useStores } from '../hooks/useStores'
 import { useToast } from '../context/ToastContext'
 
 const STORAGE_KEY = 'submittedApprovals'
-const STALE_MS = 10 * 60 * 1000 // 10 minutes
+const STALE_MS = 10 * 60 * 1000
 
 function readStoredIds(): Set<string> {
   try {
@@ -39,6 +39,18 @@ function deleteStoredId(id: string) {
   } catch { /* ignore */ }
 }
 
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-base-content/6">
+      {[42, 22, 18, 18, 20, 14].map((w, i) => (
+        <td key={i} className="py-3.5 px-4">
+          <div className="h-3 rounded bg-base-content/8 animate-pulse" style={{ width: `${w}%` }} />
+        </td>
+      ))}
+    </tr>
+  )
+}
+
 export function AdminApprovals() {
   const { showToast } = useToast()
   const { stores } = useStores()
@@ -54,8 +66,6 @@ export function AdminApprovals() {
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
-
-  // bgTick increments whenever localStorage changes, forcing backgroundIds to re-derive
   const [bgTick, setBgTick] = useState(0)
   const backgroundIds = useMemo(() => readStoredIds(), [bgTick])
 
@@ -64,7 +74,6 @@ export function AdminApprovals() {
     [stores],
   )
 
-  // When pending list loads, check if any backgroundIds have already been approved
   useEffect(() => {
     if (isLoading || backgroundIds.size === 0) return
     const pendingIdSet = new Set(stockRequests.map((r) => r.id))
@@ -77,7 +86,6 @@ export function AdminApprovals() {
     }
   }, [isLoading, stockRequests, backgroundIds, showToast])
 
-  // Auto-poll every 15s while there are background approvals in progress
   useEffect(() => {
     if (backgroundIds.size === 0) return
     const interval = setInterval(() => { void refetch('pending') }, 15_000)
@@ -85,13 +93,11 @@ export function AdminApprovals() {
   }, [backgroundIds, refetch])
 
   const handleApprove = async (id: string) => {
-    // Write to localStorage FIRST — survives a Ctrl+R mid-flight
     writeStoredId(id)
     setBgTick((t) => t + 1)
     setApprovingIds((prev) => new Set(prev).add(id))
     try {
       await approveRequest(id, 'Admin')
-      // Success — remove from background tracker, mark done
       deleteStoredId(id)
       setBgTick((t) => t + 1)
       setDoneIds((prev) => new Set(prev).add(id))
@@ -99,13 +105,11 @@ export function AdminApprovals() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to approve request.'
       if (msg.includes('Route GET') || msg.includes('timed out')) {
-        // Keep in localStorage — backend is still processing
         showToast({
           message: 'Approval submitted. Server is processing — will update in ~1 minute.',
           durationMs: 15000,
         })
       } else {
-        // Real error — remove from localStorage so admin can retry
         deleteStoredId(id)
         setBgTick((t) => t + 1)
         showToast({ message: `Approve failed: ${msg}`, durationMs: 8000 })
@@ -130,117 +134,137 @@ export function AdminApprovals() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
+    <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <header className="mb-7 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content mb-2">
-              Stock Approvals
-            </h1>
-            <p className="text-base-content/60 text-sm sm:text-base">
-              Review pending stock changes submitted by operators.
-            </p>
+            <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Admin</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Stock approvals</h1>
+            <p className="text-sm text-base-content/45 mt-1">Review pending stock changes submitted by operators</p>
           </div>
-          <button type="button" className="btn btn-sm btn-outline" onClick={() => refetch('pending')}>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
+            onClick={() => refetch('pending')}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
             Refresh
           </button>
-        </div>
+        </header>
 
         {error ? (
-          <div className="alert alert-error mb-4">
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-4 py-3 text-sm text-error mb-5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             <span>{error}</span>
           </div>
         ) : null}
 
-        <div className="card bg-base-100 shadow border border-base-200">
-          <div className="card-body">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 min-h-32 w-full">
-                <span className="loading loading-spinner loading-lg text-primary" />
-              </div>
-            ) : stockRequests.length === 0 ? (
-              <p className="text-base-content/60 py-8 text-center">No pending requests.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="table text-sm">
-                  <thead className="bg-base-200">
-                    <tr>
-                      <th>Item</th>
-                      <th>Branch</th>
-                      <th>Stock change</th>
-                      <th>Requested by</th>
-                      <th>When</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stockRequests.map((req) => {
-                      const isApproving = approvingIds.has(req.id)
-                      const isRejecting = rejectingIds.has(req.id)
-                      const isDone = doneIds.has(req.id)
-                      const isBackground = backgroundIds.has(req.id)
-                      const isDisabled = isApproving || isRejecting || isDone || isBackground
+        <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-base-content/8 bg-base-content/3">
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Item</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Branch</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Stock change</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Requested by</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">When</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                ) : stockRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center">
+                      <p className="text-sm text-base-content/40">No pending requests</p>
+                    </td>
+                  </tr>
+                ) : (
+                  stockRequests.map((req, index) => {
+                    const isApproving = approvingIds.has(req.id)
+                    const isRejecting = rejectingIds.has(req.id)
+                    const isDone = doneIds.has(req.id)
+                    const isBackground = backgroundIds.has(req.id)
+                    const isDisabled = isApproving || isRejecting || isDone || isBackground
 
-                      return (
-                        <tr key={req.id} className="border-b border-base-200">
-                          <td className="font-medium text-base-content">{req.itemName}</td>
-                          <td className="text-base-content/80">
-                            {req.storeName ||
-                              storeNameById.get(req.storeId) ||
-                              req.storeId}
-                          </td>
-                          <td className="text-base-content/70 text-xs whitespace-nowrap">
-                            {req.newStock}
-                          </td>
-                          <td className="text-base-content/70">{req.requestedBy}</td>
-                          <td className="text-base-content/60 text-xs whitespace-nowrap">
-                            {new Date(req.createdAt).toLocaleString()}
-                          </td>
-                          <td>
-                            {isBackground ? (
-                              <span className="flex items-center gap-1.5 text-xs text-base-content/50">
-                                <span className="loading loading-spinner loading-xs" />
-                                Processing…
-                              </span>
-                            ) : (
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  className="btn btn-xs btn-success min-w-[72px]"
-                                  disabled={isDisabled}
-                                  onClick={() => void handleApprove(req.id)}
-                                >
-                                  {isApproving ? (
-                                    <span className="loading loading-spinner loading-xs" />
-                                  ) : (
-                                    'Approve'
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-xs btn-error min-w-[60px]"
-                                  disabled={isDisabled}
-                                  onClick={() => void handleReject(req.id)}
-                                >
-                                  {isRejecting ? (
-                                    <span className="loading loading-spinner loading-xs" />
-                                  ) : (
-                                    'Reject'
-                                  )}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    return (
+                      <tr
+                        key={req.id}
+                        className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                        style={{ animationDelay: `${index * 25}ms` }}
+                      >
+                        <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
+                        <td className="py-3.5 px-4 text-base-content/60">
+                          {req.storeName || storeNameById.get(req.storeId) || req.storeId}
+                        </td>
+                        <td className="py-3.5 px-4 text-base-content/60 tabular text-xs whitespace-nowrap">{req.newStock}</td>
+                        <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
+                        <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">
+                          {new Date(req.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {isBackground ? (
+                            <span className="flex items-center gap-1.5 text-xs text-base-content/40">
+                              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                              </svg>
+                              Processing…
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[4.5rem] justify-center"
+                                disabled={isDisabled}
+                                onClick={() => void handleApprove(req.id)}
+                              >
+                                {isApproving ? (
+                                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[3.75rem] justify-center"
+                                disabled={isDisabled}
+                                onClick={() => void handleReject(req.id)}
+                              >
+                                {isRejecting ? (
+                                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                )}
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
