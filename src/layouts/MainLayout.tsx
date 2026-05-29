@@ -86,7 +86,7 @@ export function MainLayout() {
       )}
 
       <div
-        className={`fixed inset-y-0 right-0 lg:left-0 lg:right-auto w-64 transform transition-transform duration-300 ease-in-out z-40 ${
+        className={`fixed inset-y-0 right-0 lg:left-0 lg:right-auto w-[15.5rem] transform transition-transform duration-300 ease-in-out z-40 ${
           sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
       >
@@ -101,7 +101,7 @@ export function MainLayout() {
         />
       </div>
 
-      <div className="flex-1 flex flex-col relative w-full lg:ml-64">
+      <div className="flex-1 flex flex-col relative w-full lg:ml-[15.5rem]">
         <button
           className="lg:hidden fixed top-4 right-4 z-50 btn btn-ghost btn-circle bg-base-100/80 backdrop-blur-sm border border-base-content/10 hover:bg-base-100"
           onClick={() => setSidebarOpen(!sidebarOpen)}

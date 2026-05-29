@@ -14,10 +14,22 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'rejected', label: 'Rejected' },
 ]
 
-const STATUS_BADGE: Record<string, string> = {
-  approved: 'badge-success',
-  rejected: 'badge-error',
-  pending: 'badge-warning',
+const STATUS_CLASSES: Record<string, string> = {
+  approved: 'status-badge status-badge-approved',
+  rejected: 'status-badge status-badge-rejected',
+  pending:  'status-badge status-badge-pending',
+}
+
+function SkeletonRow({ cols }: { cols: number }) {
+  return (
+    <tr className="border-b border-base-content/6">
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i} className="py-3.5 px-4">
+          <div className="h-3 rounded bg-base-content/8 animate-pulse" style={{ width: `${[45, 22, 12, 16, 18, 20][i] ?? 20}%` }} />
+        </td>
+      ))}
+    </tr>
+  )
 }
 
 export function OperatorQueue() {
@@ -48,28 +60,31 @@ export function OperatorQueue() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200 p-3 sm:p-4 md:p-8">
+    <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-base-content mb-2">
-            My Requests
-          </h1>
-          <p className="text-base-content/60 text-sm sm:text-base">
-            Stock change requests submitted by{' '}
-            <span className="font-medium text-base-content">
+        <header className="mb-7">
+          <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Operator</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">My requests</h1>
+          <p className="text-sm text-base-content/45 mt-1">
+            Submitted by{' '}
+            <span className="font-medium text-base-content/70">
               {user?.displayName ?? user?.username}
             </span>
           </p>
-        </div>
+        </header>
 
         {/* Tabs */}
-        <div className="tabs tabs-boxed bg-base-100 w-fit mb-4 shadow border border-base-200">
+        <div className="flex items-center gap-1 mb-5 border-b border-base-content/8 pb-0">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
               onClick={() => handleTabChange(tab.id)}
+              className={`px-4 py-2.5 text-sm font-medium transition-all duration-150 border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? 'text-primary border-primary'
+                  : 'text-base-content/45 border-transparent hover:text-base-content hover:border-base-content/20'
+              }`}
             >
               {tab.label}
             </button>
@@ -77,88 +92,88 @@ export function OperatorQueue() {
         </div>
 
         {error ? (
-          <div className="alert alert-error mb-4">
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-4 py-3 text-sm text-error mb-5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             <span>{error}</span>
           </div>
         ) : null}
 
-        <div className="card bg-base-100 shadow border border-base-200">
-          <div className="card-body p-0 sm:p-0">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 min-h-32 w-full">
-                <span className="loading loading-spinner loading-lg text-primary" />
-              </div>
-            ) : requests.length === 0 ? (
-              <p className="text-base-content/60 py-8 text-center">No requests found.</p>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="table text-sm">
-                    <thead className="bg-base-200">
-                      <tr>
-                        <th>Item</th>
-                        <th>Branch</th>
-                        <th>Qty</th>
-                        <th>Status</th>
-                        <th>Reviewed by</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedRequests.map((req) => (
-                        <tr key={req.id} className="border-b border-base-200">
-                          <td className="font-medium text-base-content">{req.itemName}</td>
-                          <td className="text-base-content/80">
-                            {req.storeName || storeNameById.get(req.storeId) || req.storeId}
-                          </td>
-                          <td className="text-base-content/70 text-xs">+{req.newStock}</td>
-                          <td>
-                            <span className={`badge badge-sm ${STATUS_BADGE[req.status] ?? 'badge-ghost'}`}>
-                              {req.status}
-                            </span>
-                          </td>
-                          <td className="text-base-content/60 text-xs">
-                            {req.reviewedBy ?? '—'}
-                          </td>
-                          <td className="text-base-content/60 text-xs whitespace-nowrap">
-                            {new Date(req.createdAt).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-base-200">
-                  <div className="text-xs text-base-content/60">
-                    Showing {(safePage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safePage * ITEMS_PER_PAGE, requests.length)} of {requests.length}
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline text-xs"
-                      disabled={safePage === 1}
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-base-content/8 bg-base-content/3">
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Item</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Branch</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Qty</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Status</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Reviewed by</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
+                ) : requests.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-sm text-base-content/40">
+                      No requests found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRequests.map((req, index) => (
+                    <tr
+                      key={req.id}
+                      className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                      style={{ animationDelay: `${index * 25}ms` }}
                     >
-                      ← Prev
-                    </button>
-                    <span className="text-xs font-medium text-base-content whitespace-nowrap">
-                      {safePage} / {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline text-xs"
-                      disabled={safePage === totalPages}
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                      Next →
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+                      <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
+                      <td className="py-3.5 px-4 text-base-content/60">
+                        {req.storeName || storeNameById.get(req.storeId) || req.storeId}
+                      </td>
+                      <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{req.newStock}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={STATUS_CLASSES[req.status] ?? STATUS_CLASSES.pending}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-base-content/45 text-xs">{req.reviewedBy ?? '—'}</td>
+                      <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">
+                        {new Date(req.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {!isLoading && requests.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-base-content/8">
+              <p className="text-xs text-base-content/40">
+                {(safePage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safePage * ITEMS_PER_PAGE, requests.length)} of {requests.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content"
+                  disabled={safePage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >← Prev</button>
+                <span className="text-xs text-base-content/60 tabular px-1">{safePage} / {totalPages}</span>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content"
+                  disabled={safePage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >Next →</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </main>
   )
 }

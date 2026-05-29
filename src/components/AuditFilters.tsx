@@ -1,22 +1,16 @@
-// Audit trail filter component
 export type AuditDirectionFilter = 'all' | 'decrease' | 'increase'
 export type AuditBranchFilter = string
 
 interface AuditFiltersProps {
   searchTerm: string
   onSearchChange: (search: string) => void
-
   branchId: AuditBranchFilter
   onBranchChange: (branchId: AuditBranchFilter) => void
-
   direction: AuditDirectionFilter
   onDirectionChange: (direction: AuditDirectionFilter) => void
-
   onClearFilters: () => void
   branches: { id: string; name: string }[]
 }
-
-
 
 export function AuditFilters({
   searchTerm,
@@ -28,78 +22,63 @@ export function AuditFilters({
   onClearFilters,
   branches,
 }: AuditFiltersProps) {
+  const hasActiveFilters = searchTerm || branchId || direction !== 'all'
+
   return (
-    <div className="card bg-base-100 shadow border border-base-200 mb-6">
-      <div className="card-body">
-        <h3 className="card-title text-base sm:text-lg text-base-content mb-4">Filters</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {/* Search Filter */}
-          <div className="form-control">
-            <label className="label py-2 sm:py-3">
-              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
-                Search
-              </span>
-            </label>
-            <input
-              type="text"
-              placeholder="Item or admin name..."
-              className="input input-bordered w-full focus:input-primary text-sm"
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-          </div>
-
-          {/* Branch Filter */}
-          <div className="form-control">
-            <label className="label py-2 sm:py-3">
-              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
-                Branch
-              </span>
-            </label>
-            <select
-              className="select select-bordered w-full focus:select-primary text-sm"
-              value={branchId}
-              onChange={(e) => onBranchChange(e.target.value)}
-            >
-              <option value="">All branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Direction Filter */}
-          <div className="form-control">
-            <label className="label py-2 sm:py-3">
-              <span className="label-text font-semibold text-base-content text-xs sm:text-sm">
-                Movement
-              </span>
-            </label>
-            <select
-              className="select select-bordered w-full focus:select-primary text-sm"
-              value={direction}
-              onChange={(e) => onDirectionChange(e.target.value as any)}
-            >
-              <option value="all">All</option>
-              <option value="decrease">Decreased stock</option>
-              <option value="increase">Increased stock</option>
-            </select>
-          </div>
+    <div className="mb-5">
+      <div className="flex flex-wrap items-end gap-3">
+        {/* Search */}
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1 basis-40">
+          <label className="text-xs font-medium text-base-content/50">Search</label>
+          <input
+            type="text"
+            placeholder="Item or admin name…"
+            className="input input-sm input-bordered bg-base-100 text-sm w-full"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
         </div>
 
-        {/* Clear Filters Button */}
-        <div className="card-actions justify-end mt-4">
+        {/* Branch */}
+        <div className="flex flex-col gap-1.5 min-w-0 w-44">
+          <label className="text-xs font-medium text-base-content/50">Branch</label>
+          <select
+            className="select select-sm select-bordered bg-base-100 text-sm w-full"
+            value={branchId}
+            onChange={(e) => onBranchChange(e.target.value)}
+          >
+            <option value="">All branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Movement */}
+        <div className="flex flex-col gap-1.5 min-w-0 w-40">
+          <label className="text-xs font-medium text-base-content/50">Movement</label>
+          <select
+            className="select select-sm select-bordered bg-base-100 text-sm w-full"
+            value={direction}
+            onChange={(e) => onDirectionChange(e.target.value as AuditDirectionFilter)}
+          >
+            <option value="all">All movements</option>
+            <option value="decrease">Decreased</option>
+            <option value="increase">Increased</option>
+          </select>
+        </div>
+
+        {/* Clear */}
+        {hasActiveFilters ? (
           <button
-            className="btn btn-outline btn-sm text-xs sm:text-sm"
+            type="button"
+            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content self-end"
             onClick={onClearFilters}
           >
-            Clear Filters
+            Clear
           </button>
-        </div>
+        ) : null}
       </div>
     </div>
   )
 }
-

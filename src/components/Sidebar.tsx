@@ -9,45 +9,67 @@ interface SidebarProps {
 }
 
 const DashboardIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
   </svg>
 )
 
-const ReportsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7H7v10h6V7z M17 7h-2v4h2V7z M13 13h-6 M17 13h-2" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h18a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V5a2 2 0 012-2z" />
+const InventoryIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
   </svg>
 )
 
 const ApprovalsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 )
 
 const OperatorsIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
   </svg>
 )
 
 const QueueIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
   </svg>
 )
 
 const HistoryIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="12 8 12 12 14 14" />
+    <path d="M3.05 11a9 9 0 118.83-7.63" />
+    <polyline points="3 4 3 11 10 11" />
   </svg>
 )
 
 const ManualIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+  </svg>
+)
+
+const SignOutIcon = () => (
+  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 )
 
@@ -63,7 +85,7 @@ export function Sidebar({
   const menuItems = [
     ...(isAdmin ? [{ id: 'dashboard', label: 'Dashboard', icon: DashboardIcon }] : []),
     ...(!isAdmin ? [
-      { id: 'reports', label: 'Inventory', icon: ReportsIcon },
+      { id: 'reports', label: 'Inventory', icon: InventoryIcon },
       { id: 'queue', label: 'My Requests', icon: QueueIcon },
     ] : []),
     ...(isAdmin
@@ -80,50 +102,87 @@ export function Sidebar({
     onPageChange()
   }
 
+  const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'
+
   return (
     <div className="sidebar-container h-full flex flex-col">
-      <div className="px-4 sm:px-6 py-6 sm:py-8 border-b border-base-content/10">
-        <h2 className="text-base sm:text-lg font-semibold text-base-content">Two Wheels Zone</h2>
-        <p className="text-xs text-base-content/50 mt-2">Inventory System</p>
+      {/* Brand */}
+      <div className="px-5 py-6 border-b border-base-content/8">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-primary" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-base-content leading-tight tracking-tight">Two Wheels Zone</p>
+            <p className="text-[10px] text-base-content/40 leading-tight">Inventory System</p>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-2 sm:px-3 space-y-2">
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5" aria-label="Main navigation">
         {menuItems.map((item) => {
           const Icon = item.icon
+          const isActive = currentPage === item.id
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => handleMenuClick(item.id)}
-              className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-200 ${
-                currentPage === item.id
-                  ? 'bg-primary/15 text-primary font-medium'
-                  : 'text-base-content/70 hover:text-base-content hover:bg-base-200/30'
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg relative transition-all duration-150 text-left ${
+                isActive
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'text-base-content/55 hover:text-base-content hover:bg-base-content/5'
               }`}
+              aria-current={isActive ? 'page' : undefined}
             >
+              {isActive && (
+                <span className="absolute left-0 top-[0.4rem] bottom-[0.4rem] w-0.5 rounded-r-full bg-primary" />
+              )}
               <Icon />
-              <span className="text-xs sm:text-sm">{item.label}</span>
+              <span className="text-sm">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
-      <div className="px-2 sm:px-4 py-4 sm:py-6 border-t border-base-content/10 space-y-3">
-        <div className="px-2 sm:px-3 py-2 sm:py-3 bg-base-200/20 rounded-lg border border-base-content/10">
-          <p className="text-xs font-medium text-base-content truncate">{userDisplayName}</p>
-          <p className="text-xs text-base-content/60 capitalize">{userRole}</p>
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-base-content/8 space-y-2.5">
+        {/* User card */}
+        <div className="px-3 py-2.5 rounded-lg bg-base-content/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center shrink-0">
+              <span className="text-primary text-xs font-semibold">{initial}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-base-content truncate leading-tight">{userDisplayName}</p>
+              <p className="text-[10px] text-base-content/45 capitalize leading-tight">{userRole}</p>
+            </div>
+          </div>
         </div>
+
+        {/* Actions */}
         <a
           href="https://docs.google.com/document/d/1lAHTiwJ0kuvM3aLXWJi-ZHvw6Pd3PUxgsTtZEU0wPvY/edit?tab=t.0"
           target="_blank"
           rel="noopener noreferrer"
-          className="btn btn-sm btn-ghost w-full gap-2"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-base-content/50 hover:text-base-content hover:bg-base-content/5 transition-all duration-150 text-sm"
         >
           <ManualIcon />
-          Manual
+          <span className="text-xs">User manual</span>
         </a>
-        <button type="button" className="btn btn-sm btn-outline w-full" onClick={onLogout}>
-          Sign out
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-base-content/50 hover:text-error hover:bg-error/8 transition-all duration-150"
+        >
+          <SignOutIcon />
+          <span className="text-xs">Sign out</span>
         </button>
       </div>
     </div>
