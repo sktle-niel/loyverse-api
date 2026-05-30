@@ -40,7 +40,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Cache API calls for offline resilience (read-only calls only)
+        importScripts: ['/push-handler.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { ROUTES, USER_MANUAL_URL } from '../constants/app'
+import { NotificationBell } from './NotificationBell'
 
 interface SidebarProps {
   isAdmin: boolean
@@ -154,6 +155,9 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
             </div>
           </div>
         </div>
+
+        {/* Push notifications — admin only */}
+        {isAdmin && <NotificationBell />}
 
         {/* Actions */}
         <a
