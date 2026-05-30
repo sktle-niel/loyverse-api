@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Product, StoreInfo } from '../api/types'
 import { useProducts } from '../hooks/useProducts'
+import { useProductSearch } from '../hooks/useProductSearch'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
-import { filterProducts } from '../utils/productSearch'
 
 const ITEMS_PER_PAGE = 10
 
@@ -47,7 +47,7 @@ export function Inventory() {
   const [drafts, setDrafts] = useState<Record<string, ProductDraft>>({})
   const [savingProductId, setSavingProductId] = useState<string | null>(null)
 
-  const products = useMemo(() => filterProducts(allProducts, query), [allProducts, query])
+  const { results: products, isSearching } = useProductSearch(query, allProducts)
   const isLoading = productsLoading
   const isSearchActive = query.trim().length > 0
 
@@ -204,6 +204,11 @@ export function Inventory() {
               className="w-full rounded-lg border border-base-content/12 bg-base-100 pl-9 pr-3.5 py-2 text-sm text-base-content placeholder:text-base-content/30 outline-none focus:border-primary/60 transition-colors duration-150"
               disabled={isLoading && allProducts.length === 0}
             />
+            {isSearching && (
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-base-content/30" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+              </svg>
+            )}
           </div>
         </div>
 

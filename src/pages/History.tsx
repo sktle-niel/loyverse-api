@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useStores } from '../hooks/useStores'
 
-type Tab = 'all' | 'approved' | 'rejected'
+type Tab = 'all' | 'approved' | 'rejected' | 'cancelled'
 
 const ITEMS_PER_PAGE = 20
 
@@ -10,12 +10,14 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'approved', label: 'Approved' },
   { id: 'rejected', label: 'Rejected' },
+  { id: 'cancelled', label: 'Cancelled' },
 ]
 
 const STATUS_CLASSES: Record<string, string> = {
-  approved: 'status-badge status-badge-approved',
-  rejected: 'status-badge status-badge-rejected',
-  pending:  'status-badge status-badge-pending',
+  approved:  'status-badge status-badge-approved',
+  rejected:  'status-badge status-badge-rejected',
+  pending:   'status-badge status-badge-pending',
+  cancelled: 'status-badge status-badge-cancelled',
 }
 
 function SkeletonRow({ cols }: { cols: number }) {

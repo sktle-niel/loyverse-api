@@ -104,7 +104,7 @@ export function AdminApprovals() {
       showToast({ message: 'Approved. Stock updated in Loyverse.', durationMs: 6000 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to approve request.'
-      if (msg.includes('Route GET') || msg.includes('timed out')) {
+      if (msg.includes('timed out')) {
         showToast({
           message: 'Approval submitted. Server is processing — will update in ~1 minute.',
           durationMs: 15000,

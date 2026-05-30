@@ -1,11 +1,12 @@
+import { NavLink } from 'react-router-dom'
+import { ROUTES, USER_MANUAL_URL } from '../constants/app'
+
 interface SidebarProps {
-  currentPage: string
   isAdmin: boolean
   userDisplayName: string
   userRole: 'admin' | 'operator'
   onLogout: () => void
   onPageChange: () => void
-  onPageChangeCallback: (page: string) => void
 }
 
 const DashboardIcon = () => (
@@ -73,34 +74,19 @@ const SignOutIcon = () => (
   </svg>
 )
 
-export function Sidebar({
-  currentPage,
-  isAdmin,
-  userDisplayName,
-  userRole,
-  onLogout,
-  onPageChange,
-  onPageChangeCallback,
-}: SidebarProps) {
+export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageChange }: SidebarProps) {
   const menuItems = [
-    ...(isAdmin ? [{ id: 'dashboard', label: 'Dashboard', icon: DashboardIcon }] : []),
+    ...(isAdmin ? [{ path: ROUTES.DASHBOARD, label: 'Dashboard', icon: DashboardIcon }] : []),
     ...(!isAdmin ? [
-      { id: 'reports', label: 'Inventory', icon: InventoryIcon },
-      { id: 'queue', label: 'My Requests', icon: QueueIcon },
+      { path: ROUTES.INVENTORY, label: 'Inventory', icon: InventoryIcon },
+      { path: ROUTES.QUEUE, label: 'My Requests', icon: QueueIcon },
     ] : []),
-    ...(isAdmin
-      ? [
-          { id: 'approvals', label: 'Approvals', icon: ApprovalsIcon },
-          { id: 'history', label: 'History', icon: HistoryIcon },
-          { id: 'operators', label: 'Operators', icon: OperatorsIcon },
-        ]
-      : []),
+    ...(isAdmin ? [
+      { path: ROUTES.APPROVALS, label: 'Approvals', icon: ApprovalsIcon },
+      { path: ROUTES.HISTORY, label: 'History', icon: HistoryIcon },
+      { path: ROUTES.OPERATORS, label: 'Operators', icon: OperatorsIcon },
+    ] : []),
   ]
-
-  const handleMenuClick = (id: string) => {
-    onPageChangeCallback(id)
-    onPageChange()
-  }
 
   const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'
 
@@ -127,25 +113,29 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5" aria-label="Main navigation">
         {menuItems.map((item) => {
           const Icon = item.icon
-          const isActive = currentPage === item.id
           return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleMenuClick(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg relative transition-all duration-150 text-left ${
-                isActive
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-base-content/55 hover:text-base-content hover:bg-base-content/5'
-              }`}
-              aria-current={isActive ? 'page' : undefined}
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={onPageChange}
+              className={({ isActive }) =>
+                `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg relative transition-all duration-150 text-left ${
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-base-content/55 hover:text-base-content hover:bg-base-content/5'
+                }`
+              }
             >
-              {isActive && (
-                <span className="absolute left-0 top-[0.4rem] bottom-[0.4rem] w-0.5 rounded-r-full bg-primary" />
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span className="absolute left-0 top-[0.4rem] bottom-[0.4rem] w-0.5 rounded-r-full bg-primary" />
+                  )}
+                  <Icon />
+                  <span className="text-sm">{item.label}</span>
+                </>
               )}
-              <Icon />
-              <span className="text-sm">{item.label}</span>
-            </button>
+            </NavLink>
           )
         })}
       </nav>
@@ -167,7 +157,7 @@ export function Sidebar({
 
         {/* Actions */}
         <a
-          href="https://docs.google.com/document/d/1lAHTiwJ0kuvM3aLXWJi-ZHvw6Pd3PUxgsTtZEU0wPvY/edit?tab=t.0"
+          href={USER_MANUAL_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-base-content/50 hover:text-base-content hover:bg-base-content/5 transition-all duration-150 text-sm"

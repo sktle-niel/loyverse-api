@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { ThemeToggleButton } from '../components/ThemeToggleButton'
 import { Dashboard } from '../pages/Dashboard'
@@ -9,33 +10,13 @@ import { History } from '../pages/History'
 import { OperatorQueue } from '../pages/OperatorQueue'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
+import { ROUTES } from '../constants/app'
 import '../styles/sidebar.css'
-
-const ADMIN_ONLY_PAGES = new Set(['dashboard', 'approvals', 'history', 'operators'])
-
-function normalizePage(page: string, isAdmin: boolean): string {
-  if (!isAdmin && ADMIN_ONLY_PAGES.has(page)) {
-    return 'reports'
-  }
-  if (isAdmin && page === 'reports') {
-    return 'dashboard'
-  }
-  return page
-}
 
 export function MainLayout() {
   const { user, isAdmin, logout } = useAuth()
-  const [currentPage, setCurrentPage] = useState(() => {
-    const saved = window.localStorage.getItem('currentPage')
-    return saved || 'dashboard'
-  })
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggle } = useTheme()
-
-  useEffect(() => {
-    if (!user) return
-    setCurrentPage((page) => normalizePage(page, isAdmin))
-  }, [user, isAdmin])
 
   useEffect(() => {
     if (sidebarOpen && window.innerWidth < 1024) {
@@ -43,38 +24,10 @@ export function MainLayout() {
     } else {
       document.body.style.overflow = 'unset'
     }
-
     return () => {
       document.body.style.overflow = 'unset'
     }
   }, [sidebarOpen])
-
-  useEffect(() => {
-    window.localStorage.setItem('currentPage', currentPage)
-  }, [currentPage])
-
-  const handlePageChange = (page: string) => {
-    setCurrentPage(normalizePage(page, isAdmin))
-  }
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return isAdmin ? <Dashboard /> : <Inventory />
-      case 'reports':
-        return isAdmin ? <Dashboard /> : <Inventory />
-      case 'approvals':
-        return isAdmin ? <AdminApprovals /> : <Inventory />
-      case 'queue':
-        return !isAdmin ? <OperatorQueue /> : <Dashboard />
-      case 'history':
-        return isAdmin ? <History /> : <Inventory />
-      case 'operators':
-        return isAdmin ? <AdminOperators /> : <Inventory />
-      default:
-        return isAdmin ? <Dashboard /> : <Inventory />
-    }
-  }
 
   return (
     <div className="flex min-h-screen">
@@ -91,13 +44,11 @@ export function MainLayout() {
         }`}
       >
         <Sidebar
-          currentPage={currentPage}
           isAdmin={isAdmin}
           userDisplayName={user?.displayName ?? user?.username ?? ''}
           userRole={user?.role ?? 'operator'}
           onLogout={logout}
           onPageChange={() => setSidebarOpen(false)}
-          onPageChangeCallback={handlePageChange}
         />
       </div>
 
@@ -117,7 +68,18 @@ export function MainLayout() {
           </svg>
         </button>
 
-        {renderPage()}
+        <Routes>
+          <Route path="/" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
+          <Route path="/reports" element={<Navigate to={ROUTES.INVENTORY} replace />} />
+          <Route path={ROUTES.DASHBOARD} element={isAdmin ? <Dashboard /> : <Navigate to={ROUTES.INVENTORY} replace />} />
+          <Route path={ROUTES.INVENTORY} element={<Inventory />} />
+          <Route path={ROUTES.APPROVALS} element={isAdmin ? <AdminApprovals /> : <Navigate to={ROUTES.INVENTORY} replace />} />
+          <Route path={ROUTES.HISTORY} element={isAdmin ? <History /> : <Navigate to={ROUTES.INVENTORY} replace />} />
+          <Route path={ROUTES.OPERATORS} element={isAdmin ? <AdminOperators /> : <Navigate to={ROUTES.INVENTORY} replace />} />
+          <Route path={ROUTES.QUEUE} element={!isAdmin ? <OperatorQueue /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path="*" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
+        </Routes>
+
         <ThemeToggleButton onToggle={toggle} currentTheme={theme} />
       </div>
     </div>
