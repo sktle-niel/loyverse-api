@@ -59,7 +59,7 @@ export function useProducts() {
       setCachedAt(response.cachedAt)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to fetch products'
-      const isServerWakingUp = msg.includes('Route GET') || msg.includes('timed out')
+      const isServerWakingUp = msg.includes('timed out')
       if (isServerWakingUp) {
         setError('Server is starting up — the catalog may take a minute to load. Please wait and try refreshing again.')
       } else {

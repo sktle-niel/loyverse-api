@@ -1,4 +1,10 @@
-import { clearAuthSession, getStoredToken } from '../utils/authStorage'
+import {
+  clearAuthSession,
+  getStoredRefreshToken,
+  getStoredToken,
+  getStoredUser,
+  setAuthSession,
+} from '../utils/authStorage'
 
 export function getApiBaseUrl(): string {
   if (import.meta.env.DEV) {
@@ -48,6 +54,56 @@ async function fetchWithTimeout(
   }
 }
 
+// Dedup: only one refresh attempt runs at a time across all concurrent requests.
+let pendingRefresh: Promise<string | null> | null = null
+
+async function tryRefreshToken(): Promise<string | null> {
+  if (pendingRefresh) return pendingRefresh
+
+  pendingRefresh = (async (): Promise<string | null> => {
+    const refreshToken = getStoredRefreshToken()
+    if (!refreshToken) return null
+
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as { token: string }
+      const user = getStoredUser()
+      if (user) setAuthSession(data.token, user)
+      return data.token
+    } catch {
+      return null
+    }
+  })()
+
+  try {
+    return await pendingRefresh
+  } finally {
+    pendingRefresh = null
+  }
+}
+
+async function executeRequest(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const res = await fetchWithTimeout(url, init, timeoutMs)
+
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      return fetchWithTimeout(url, { ...init, headers: buildHeaders() }, timeoutMs)
+    }
+  }
+
+  return res
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) {
     clearAuthSession()
@@ -77,14 +133,11 @@ type RequestOptions = {
 export async function apiFetchJson<T>(path: string, options?: RequestOptions): Promise<T> {
   const baseUrl = getApiBaseUrl()
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   let res: Response
   try {
-    res = await fetchWithTimeout(
-      url,
-      { method: 'GET', headers: buildHeaders() },
-      options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    )
+    res = await executeRequest(url, { method: 'GET', headers: buildHeaders() }, timeoutMs)
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new Error(buildTimeoutMessage())
@@ -102,14 +155,15 @@ export async function apiPatchJson<T>(
 ): Promise<T> {
   const baseUrl = getApiBaseUrl()
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   let res: Response
   try {
-    res = await fetchWithTimeout(url, {
-      method: 'PATCH',
-      headers: buildHeaders(),
-      body: JSON.stringify(body),
-    }, options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    res = await executeRequest(
+      url,
+      { method: 'PATCH', headers: buildHeaders(), body: JSON.stringify(body) },
+      timeoutMs,
+    )
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new Error(buildTimeoutMessage())
@@ -127,14 +181,19 @@ export async function apiPostJson<T>(
 ): Promise<T> {
   const baseUrl = getApiBaseUrl()
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   let res: Response
   try {
-    res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: buildHeaders(),
-      body: body ? JSON.stringify(body) : undefined,
-    }, options?.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    res = await executeRequest(
+      url,
+      {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      timeoutMs,
+    )
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new Error(buildTimeoutMessage())

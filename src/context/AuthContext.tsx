@@ -49,7 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiFetchJson<{ user: AuthUser }>('/auth/me')
       setUser(data.user)
-      setAuthSession(token, data.user)
+      // Re-read token after the call: it may have been silently refreshed by the API client.
+      setAuthSession(getStoredToken() ?? token, data.user)
     } catch {
       clearAuthSession()
       setUser(null)
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: login.trim(),
       password,
     })
-    setAuthSession(data.token, data.user)
+    setAuthSession(data.token, data.user, data.refreshToken)
     setUser(data.user)
   }, [])
 
