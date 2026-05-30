@@ -23,6 +23,21 @@ const STATUS_CLASSES: Record<string, string> = {
   cancelled: 'status-badge status-badge-cancelled',
 }
 
+function MobileSkeletonCard() {
+  return (
+    <div className="p-4 border-b border-base-content/6 space-y-2.5">
+      <div className="flex justify-between gap-2">
+        <div className="h-3.5 rounded bg-base-content/8 animate-pulse w-3/5" />
+        <div className="h-5 w-16 rounded-full bg-base-content/8 animate-pulse" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-3 rounded bg-base-content/8 animate-pulse w-4/5" />
+        <div className="h-3 rounded bg-base-content/8 animate-pulse w-3/5" />
+      </div>
+    </div>
+  )
+}
+
 function SkeletonRow({ cols }: { cols: number }) {
   return (
     <tr className="border-b border-base-content/6">
@@ -122,7 +137,71 @@ export function OperatorQueue() {
         ) : null}
 
         <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
-          <div className="overflow-x-auto">
+
+          {/* Mobile: card layout */}
+          <div className="sm:hidden divide-y divide-base-content/6">
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => <MobileSkeletonCard key={i} />)
+            ) : requests.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-sm text-base-content/40">No requests found.</p>
+              </div>
+            ) : (
+              paginatedRequests.map((req, index) => {
+                const isCancelling = cancellingIds.has(req.id)
+                const canCancel = req.status === 'pending' && showCancelColumn
+
+                return (
+                  <div
+                    key={req.id}
+                    className="p-4 space-y-2.5 animate-row"
+                    style={{ animationDelay: `${index * 25}ms` }}
+                  >
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <p className="font-medium text-sm text-base-content leading-snug">{req.itemName}</p>
+                      <span className={`${STATUS_CLASSES[req.status] ?? STATUS_CLASSES.pending} shrink-0`}>
+                        {req.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-base-content/55 space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{req.storeName || storeNameById.get(req.storeId) || req.storeId}</span>
+                        <span className="tabular font-medium text-base-content/70">+{req.newStock}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-base-content/40 tabular">{new Date(req.createdAt).toLocaleString()}</span>
+                        {req.reviewedBy && (
+                          <span className="text-base-content/40">by {req.reviewedBy}</span>
+                        )}
+                      </div>
+                    </div>
+                    {canCancel && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-base-content/6 text-base-content/50 border border-base-content/10 hover:bg-error/10 hover:text-error hover:border-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={isCancelling}
+                        onClick={() => void handleCancel(req.id)}
+                      >
+                        {isCancelling ? (
+                          <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        )}
+                        Cancel request
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          {/* Desktop: table layout */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-base-content/8 bg-base-content/3">

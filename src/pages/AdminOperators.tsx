@@ -213,38 +213,68 @@ export function AdminOperators() {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-base-content/8 bg-base-content/3">
-                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Display name</th>
-                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Username</th>
-                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Email</th>
-                          <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">Created</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {operators.map((op, index) => (
-                          <tr
-                            key={op.id}
-                            className="border-b border-base-content/6 last:border-0 hover:bg-base-content/3 transition-colors duration-100 animate-row"
-                            style={{ animationDelay: `${index * 25}ms` }}
-                          >
-                            <td className="py-3.5 px-4 font-medium text-base-content">{op.displayName}</td>
-                            <td className="py-3.5 px-4">
-                              <code className="text-xs font-mono bg-base-content/8 px-1.5 py-0.5 rounded text-base-content/70">{op.username}</code>
-                            </td>
-                            <td className="py-3.5 px-4 text-base-content/55 text-xs max-w-[12rem] truncate" title={op.email}>
-                              {op.email}
-                            </td>
-                            <td className="py-3.5 px-4 text-base-content/40 text-xs tabular whitespace-nowrap">
-                              {new Date(op.createdAt).toLocaleString()}
-                            </td>
+                  <>
+                    {/* Mobile: card layout */}
+                    <div className="sm:hidden divide-y divide-base-content/6">
+                      {operators.map((op, index) => (
+                        <div
+                          key={op.id}
+                          className="p-4 space-y-2 animate-row"
+                          style={{ animationDelay: `${index * 25}ms` }}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-primary text-xs font-semibold">
+                                {op.displayName?.[0]?.toUpperCase() ?? '?'}
+                              </span>
+                            </div>
+                            <p className="font-medium text-sm text-base-content">{op.displayName}</p>
+                          </div>
+                          <div className="text-xs text-base-content/55 space-y-0.5 pl-[2.625rem]">
+                            <div className="flex items-center justify-between gap-2">
+                              <code className="font-mono bg-base-content/8 px-1.5 py-0.5 rounded text-base-content/70">{op.username}</code>
+                              <span className="text-base-content/40 tabular">{new Date(op.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <p className="truncate" title={op.email}>{op.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop: table layout */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-base-content/8 bg-base-content/3">
+                            <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Display name</th>
+                            <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Username</th>
+                            <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Email</th>
+                            <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">Created</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {operators.map((op, index) => (
+                            <tr
+                              key={op.id}
+                              className="border-b border-base-content/6 last:border-0 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                              style={{ animationDelay: `${index * 25}ms` }}
+                            >
+                              <td className="py-3.5 px-4 font-medium text-base-content">{op.displayName}</td>
+                              <td className="py-3.5 px-4">
+                                <code className="text-xs font-mono bg-base-content/8 px-1.5 py-0.5 rounded text-base-content/70">{op.username}</code>
+                              </td>
+                              <td className="py-3.5 px-4 text-base-content/55 text-xs max-w-[12rem] truncate" title={op.email}>
+                                {op.email}
+                              </td>
+                              <td className="py-3.5 px-4 text-base-content/40 text-xs tabular whitespace-nowrap">
+                                {new Date(op.createdAt).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
