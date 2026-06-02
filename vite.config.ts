@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: false },
       includeAssets: ['fav.png', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Two Wheels Zone Back Office',

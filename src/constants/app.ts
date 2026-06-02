@@ -5,6 +5,7 @@ export const ROUTES = {
   HISTORY: '/history',
   OPERATORS: '/operators',
   QUEUE: '/queue',
+  TRANSFER: '/transfer',
 } as const
 
 export const USER_MANUAL_URL =
