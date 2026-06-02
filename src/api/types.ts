@@ -90,6 +90,30 @@ export interface ProductsResponse {
   cachedAt?: string
 }
 
+export interface ProductStoreStock {
+  storeId: string
+  storeName: string
+  stock: number
+}
+
+export interface StockLevelProduct {
+  id: string
+  variantId: string
+  name: string
+  sku: string
+  stocks: ProductStoreStock[]
+}
+
+export interface StockLevelsResponse {
+  products: StockLevelProduct[]
+  stores: StoreInfo[]
+  total: number
+  filtered: number
+  source: 'loyverse' | 'mock'
+  cachedAt: string
+  isLoadingInBackground?: boolean
+}
+
 export interface StockUpdateInput {
   storeId: string
   stock: number
