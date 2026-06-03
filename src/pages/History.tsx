@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useStores } from '../hooks/useStores'
 
@@ -47,8 +48,13 @@ function SkeletonRow({ cols }: { cols: number }) {
   )
 }
 
+const VALID_TABS = new Set<Tab>(['all', 'approved', 'rejected', 'cancelled'])
+
 export function History() {
-  const [activeTab, setActiveTab] = useState<Tab>('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawTab = searchParams.get('tab') as Tab | null
+  const activeTab: Tab = rawTab && VALID_TABS.has(rawTab) ? rawTab : 'all'
+  const setActiveTab = (tab: Tab) => setSearchParams({ tab }, { replace: true })
   const [currentPage, setCurrentPage] = useState(1)
 
   const { requests, isLoading, error, refetch } = useStockRequests(activeTab, true)

@@ -104,6 +104,13 @@ export interface StockLevelProduct {
   stocks: ProductStoreStock[]
 }
 
+export interface SyncProgress {
+  percent: number          // 0–99 while syncing
+  recordsFetched: number
+  totalExpected: number
+  etaSeconds: number | null
+}
+
 export interface StockLevelsResponse {
   products: StockLevelProduct[]
   stores: StoreInfo[]
@@ -112,6 +119,35 @@ export interface StockLevelsResponse {
   source: 'loyverse' | 'mock'
   cachedAt: string
   isLoadingInBackground?: boolean
+  syncProgress?: SyncProgress | null
+}
+
+export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface TransferRequest {
+  id: string
+  itemId: string
+  variantId: string
+  itemName: string
+  sku: string
+  fromStoreId: string
+  fromStoreName: string
+  toStoreId: string
+  toStoreName: string
+  quantity: number
+  fromStockBefore: number | null
+  toStockBefore: number | null
+  requestedBy: string
+  status: TransferRequestStatus
+  createdAt: string
+  reviewedAt?: string
+  reviewedBy?: string
+  rejectionReason?: string
+}
+
+export interface TransferRequestsResponse {
+  requests: TransferRequest[]
+  total: number
 }
 
 export interface StockUpdateInput {

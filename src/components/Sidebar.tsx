@@ -50,6 +50,14 @@ const TransferIcon = () => (
   </svg>
 )
 
+const SearchTransferIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h7" />
+  </svg>
+)
+
 const QueueIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -89,6 +97,7 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
     ...(!isAdmin ? [
       { path: ROUTES.INVENTORY, label: 'Inventory', icon: InventoryIcon },
       { path: ROUTES.TRANSFER, label: 'Stock Levels', icon: TransferIcon },
+      { path: ROUTES.ITEM_SEARCH, label: 'Search Transfer', icon: SearchTransferIcon },
       { path: ROUTES.QUEUE, label: 'My Requests', icon: QueueIcon },
     ] : []),
     ...(isAdmin ? [

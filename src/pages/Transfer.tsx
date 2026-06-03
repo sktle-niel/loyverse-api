@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useStockLevels } from '../hooks/useStockLevels'
+import { useTransferRequests } from '../hooks/useTransferRequests'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import type { StockLevelProduct, StoreInfo } from '../api/types'
 
 const ITEMS_PER_PAGE = 15
 
@@ -41,9 +46,220 @@ function MobileSkeletonCard() {
   )
 }
 
+interface TransferModalProps {
+  product: StockLevelProduct
+  stores: StoreInfo[]
+  onClose: () => void
+  onSubmit: (fromStoreId: string, toStoreId: string, quantity: number) => Promise<void>
+}
+
+function TransferModal({ product, stores, onClose, onSubmit }: TransferModalProps) {
+  const storesWithStock = product.stocks.filter((s) => s.stock > 0)
+  const defaultFrom = storesWithStock.length > 0
+    ? storesWithStock.reduce((a, b) => (a.stock >= b.stock ? a : b)).storeId
+    : stores[0]?.id ?? ''
+
+  const [fromStoreId, setFromStoreId] = useState(defaultFrom)
+  const [toStoreId, setToStoreId] = useState(
+    stores.find((s) => s.id !== defaultFrom)?.id ?? ''
+  )
+  const [quantityRaw, setQuantityRaw] = useState('1')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fromStock = product.stocks.find((s) => s.storeId === fromStoreId)?.stock ?? 0
+  const toStockCurrent = product.stocks.find((s) => s.storeId === toStoreId)?.stock ?? 0
+  // effective quantity used for preview and submit — always a valid clamped number
+  const quantity = Math.min(fromStock, Math.max(1, parseInt(quantityRaw, 10) || 1))
+
+  const handleFromChange = (id: string) => {
+    setFromStoreId(id)
+    if (id === toStoreId) {
+      const other = stores.find((s) => s.id !== id)
+      if (other) setToStoreId(other.id)
+    }
+    setQuantityRaw('1')
+    setError(null)
+  }
+
+  const handleSubmit = async () => {
+    if (!fromStoreId || !toStoreId || fromStoreId === toStoreId) {
+      setError('Please select different source and destination stores.')
+      return
+    }
+    if (quantity <= 0 || quantity > fromStock) {
+      setError(`Quantity must be between 1 and ${fromStock}.`)
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      await onSubmit(fromStoreId, toStoreId, quantity)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to submit transfer request.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-base-100 rounded-xl border border-base-content/10 shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-base-content">Transfer stock</h2>
+            <p className="text-sm text-base-content/50 mt-0.5 leading-snug">{product.name}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-base-content/35 hover:text-base-content transition-colors mt-0.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-3.5">
+          {/* From store */}
+          <div>
+            <label className="block text-xs font-medium text-base-content/55 mb-1.5">From (source)</label>
+            <select
+              className="w-full rounded-lg border border-base-content/12 bg-base-100 px-3 py-2 text-sm text-base-content outline-none focus:border-primary/60 transition-colors"
+              value={fromStoreId}
+              onChange={(e) => handleFromChange(e.target.value)}
+            >
+              {stores.map((s) => {
+                const stock = product.stocks.find((ps) => ps.storeId === s.id)?.stock ?? 0
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name} — {stock} units
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* To store */}
+          <div>
+            <label className="block text-xs font-medium text-base-content/55 mb-1.5">To (destination)</label>
+            <select
+              className="w-full rounded-lg border border-base-content/12 bg-base-100 px-3 py-2 text-sm text-base-content outline-none focus:border-primary/60 transition-colors"
+              value={toStoreId}
+              onChange={(e) => { setToStoreId(e.target.value); setError(null) }}
+            >
+              {stores
+                .filter((s) => s.id !== fromStoreId)
+                .map((s) => {
+                  const stock = product.stocks.find((ps) => ps.storeId === s.id)?.stock ?? 0
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.name} — {stock} units
+                    </option>
+                  )
+                })}
+            </select>
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-xs font-medium text-base-content/55 mb-1.5">
+              Quantity <span className="text-base-content/35">(max {fromStock})</span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={fromStock}
+              value={quantityRaw}
+              onChange={(e) => {
+                const raw = e.target.value
+                if (raw === '') { setQuantityRaw(''); setError(null); return }
+                const num = parseInt(raw, 10)
+                if (!isNaN(num)) setQuantityRaw(String(Math.min(fromStock, Math.max(1, num))))
+                setError(null)
+              }}
+              onBlur={() => { if (!quantityRaw) setQuantityRaw('1') }}
+              className="w-full rounded-lg border border-base-content/12 bg-base-100 px-3 py-2 text-sm text-base-content outline-none focus:border-primary/60 transition-colors tabular"
+            />
+          </div>
+
+          {/* Preview */}
+          {fromStoreId && toStoreId && fromStoreId !== toStoreId && (
+            <div className="rounded-lg bg-base-200/60 border border-base-content/8 px-3.5 py-2.5 text-xs space-y-1 text-base-content/60">
+              <p className="font-medium text-base-content/80 mb-1.5">After transfer (if approved)</p>
+              <div className="flex justify-between">
+                <span>{stores.find(s => s.id === fromStoreId)?.name}</span>
+                <span className="tabular font-medium">{fromStock} → <span className="text-error">{fromStock - quantity}</span></span>
+              </div>
+              <div className="flex justify-between">
+                <span>{stores.find(s => s.id === toStoreId)?.name}</span>
+                <span className="tabular font-medium">{toStockCurrent} → <span className="text-success">{toStockCurrent + quantity}</span></span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-xs text-error">{error}</p>
+          )}
+        </div>
+
+        <div className="flex gap-2.5 pt-1">
+          <button
+            type="button"
+            className="flex-1 btn btn-sm btn-ghost border border-base-content/10"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="flex-1 btn btn-sm btn-primary"
+            onClick={() => void handleSubmit()}
+            disabled={isSubmitting || fromStock === 0 || fromStoreId === toStoreId}
+          >
+            {isSubmitting ? (
+              <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+              </svg>
+            ) : null}
+            {isSubmitting ? 'Submitting…' : 'Request transfer'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export function Transfer() {
-  const { products, stores, source, cachedAt, isLoading, isRefreshing, isServerLoading, error, refresh } =
+  const { products, stores, source, cachedAt, isLoading, isResetting, isServerLoading, syncProgress, isPaused, error, pause, resume, reset } =
     useStockLevels()
+  const { submitTransfer } = useTransferRequests()
+  const { user } = useAuth()
+  const { showToast } = useToast()
+
+  const [transferTarget, setTransferTarget] = useState<StockLevelProduct | null>(null)
+
+  const handleTransferSubmit = async (fromStoreId: string, toStoreId: string, quantity: number) => {
+    if (!transferTarget) return
+    await submitTransfer({
+      itemId: transferTarget.id,
+      fromStoreId,
+      toStoreId,
+      quantity,
+      requestedBy: user?.displayName ?? 'Operator',
+    })
+    showToast({ message: 'Transfer request submitted for admin approval.', durationMs: 6000 })
+  }
+
+  function formatEta(seconds: number): string {
+    if (seconds < 60) return `~${seconds}s remaining`
+    const min = Math.floor(seconds / 60)
+    const sec = seconds % 60
+    return sec > 0 ? `~${min}m ${sec}s remaining` : `~${min}m remaining`
+  }
   const [query, setQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -79,35 +295,94 @@ export function Transfer() {
             </p>
             {isLoading ? (
               <p className="text-xs text-primary/70 mt-1.5">Loading stock levels…</p>
-            ) : isServerLoading ? (
-              <p className="text-xs text-warning/80 mt-1.5 flex items-center gap-1.5">
-                <svg className="animate-spin shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-                </svg>
-                Server is syncing latest stock from Loyverse — data updates automatically
+            ) : isPaused ? (
+              <p className="text-xs text-base-content/40 mt-1.5 flex items-center gap-1.5">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                Sync paused — click Resume to continue
               </p>
+            ) : isServerLoading ? (
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-warning/80 flex items-center gap-1.5">
+                    <svg className="animate-spin shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                    </svg>
+                    Syncing from Loyverse…
+                    {syncProgress && (
+                      <span className="font-semibold text-warning">
+                        {syncProgress.percent}%
+                      </span>
+                    )}
+                  </p>
+                  {syncProgress?.etaSeconds != null && (
+                    <p className="text-xs text-base-content/35 shrink-0">
+                      {formatEta(syncProgress.etaSeconds)}
+                    </p>
+                  )}
+                </div>
+                {syncProgress && (
+                  <div className="w-full max-w-xs h-1.5 rounded-full bg-base-content/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-warning transition-all duration-500"
+                      style={{ width: `${syncProgress.percent}%` }}
+                    />
+                  </div>
+                )}
+                {syncProgress && (
+                  <p className="text-[10px] text-base-content/30">
+                    {syncProgress.recordsFetched.toLocaleString()} / {syncProgress.totalExpected.toLocaleString()} records
+                  </p>
+                )}
+              </div>
             ) : cachedAt ? (
               <p className="text-xs text-base-content/35 mt-1.5">
                 Updated {new Date(cachedAt).toLocaleString()}
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
-            disabled={isLoading || isRefreshing}
-            onClick={() => void refresh()}
-          >
-            <svg
-              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className={isRefreshing ? 'animate-spin' : ''}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Stop / Resume */}
+            <button
+              type="button"
+              className={`btn btn-sm btn-ghost border shrink-0 ${isPaused ? 'text-success border-success/20 hover:bg-success/8' : 'text-base-content/50 border-base-content/10 hover:text-base-content hover:border-base-content/20'}`}
+              disabled={isLoading}
+              onClick={() => isPaused ? resume() : pause()}
             >
-              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-            </svg>
-            {isRefreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
+              {isPaused ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  Resume
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                  </svg>
+                  {isServerLoading ? 'Stop' : 'Stop'}
+                </>
+              )}
+            </button>
+
+            {/* Reset — full re-fetch from scratch */}
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
+              disabled={isLoading || isResetting}
+              onClick={() => reset()}
+            >
+              <svg
+                width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className={isResetting ? 'animate-spin' : ''}
+              >
+                <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+              {isResetting ? 'Resetting…' : 'Reset'}
+            </button>
+          </div>
         </header>
 
         {error && (
@@ -182,6 +457,17 @@ export function Transfer() {
                       </div>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors duration-150 w-fit"
+                    onClick={() => setTransferTarget(p)}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h14" />
+                      <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                    </svg>
+                    Request transfer
+                  </button>
                 </div>
               ))
             )}
@@ -199,6 +485,7 @@ export function Transfer() {
                       {s.name}
                     </th>
                   ))}
+                  <th className="py-3 px-4 w-px" />
                 </tr>
               </thead>
               <tbody>
@@ -226,6 +513,20 @@ export function Transfer() {
                           <StockBadge count={s.stock} />
                         </td>
                       ))}
+                      <td className="py-3.5 px-3">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-base-content/45 hover:text-primary hover:bg-primary/8 border border-transparent hover:border-primary/20 transition-colors duration-150 whitespace-nowrap"
+                          onClick={() => setTransferTarget(p)}
+                          title="Request stock transfer"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h14" />
+                            <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                          </svg>
+                          Transfer
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -259,6 +560,15 @@ export function Transfer() {
           )}
         </div>
       </div>
+
+      {transferTarget && (
+        <TransferModal
+          product={transferTarget}
+          stores={stores}
+          onClose={() => setTransferTarget(null)}
+          onSubmit={handleTransferSubmit}
+        />
+      )}
     </main>
   )
 }
