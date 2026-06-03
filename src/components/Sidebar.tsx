@@ -1,3 +1,4 @@
+import type React from 'react'
 import { NavLink } from 'react-router-dom'
 import { ROUTES, USER_MANUAL_URL } from '../constants/app'
 import { NotificationBell } from './NotificationBell'
@@ -50,11 +51,13 @@ const TransferIcon = () => (
   </svg>
 )
 
-const SearchTransferIcon = () => (
+const TransferHistoryIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h7" />
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <polyline points="17 1 21 5 17 9" /><path d="M3 12V10a4 4 0 014-4h5" />
+    <line x1="8" y1="17" x2="16" y2="17" />
+    <line x1="8" y1="13" x2="12" y2="13" />
   </svg>
 )
 
@@ -91,21 +94,30 @@ const SignOutIcon = () => (
   </svg>
 )
 
+type NavItem =
+  | { type: 'link'; path: string; label: string; icon: () => React.ReactNode }
+  | { type: 'divider' }
+
+const DIVIDER: NavItem = { type: 'divider' }
+
 export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageChange }: SidebarProps) {
-  const menuItems = [
-    ...(isAdmin ? [{ path: ROUTES.DASHBOARD, label: 'Dashboard', icon: DashboardIcon }] : []),
-    ...(!isAdmin ? [
-      { path: ROUTES.INVENTORY, label: 'Inventory', icon: InventoryIcon },
-      { path: ROUTES.TRANSFER, label: 'Stock Levels', icon: TransferIcon },
-      { path: ROUTES.ITEM_SEARCH, label: 'Search Transfer', icon: SearchTransferIcon },
-      { path: ROUTES.QUEUE, label: 'My Requests', icon: QueueIcon },
-    ] : []),
-    ...(isAdmin ? [
-      { path: ROUTES.APPROVALS, label: 'Approvals', icon: ApprovalsIcon },
-      { path: ROUTES.HISTORY, label: 'History', icon: HistoryIcon },
-      { path: ROUTES.OPERATORS, label: 'Operators', icon: OperatorsIcon },
-    ] : []),
-  ]
+  const menuItems: NavItem[] = isAdmin
+    ? [
+        { type: 'link', path: ROUTES.DASHBOARD,        label: 'Dashboard',        icon: DashboardIcon },
+        { type: 'link', path: ROUTES.APPROVALS,        label: 'Approvals',        icon: ApprovalsIcon },
+        DIVIDER,
+        { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
+        { type: 'link', path: ROUTES.HISTORY,          label: 'History',          icon: HistoryIcon },
+        DIVIDER,
+        { type: 'link', path: ROUTES.OPERATORS,        label: 'Operators',        icon: OperatorsIcon },
+      ]
+    : [
+        { type: 'link', path: ROUTES.INVENTORY,        label: 'Inventory',        icon: InventoryIcon },
+        { type: 'link', path: ROUTES.TRANSFER,         label: 'Stock Levels',     icon: TransferIcon },
+        DIVIDER,
+        { type: 'link', path: ROUTES.QUEUE,            label: 'My Requests',      icon: QueueIcon },
+        { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
+      ]
 
   const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'
 
@@ -130,7 +142,10 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5" aria-label="Main navigation">
-        {menuItems.map((item) => {
+        {menuItems.map((item, i) => {
+          if (item.type === 'divider') {
+            return <div key={`divider-${i}`} className="my-2 mx-1 h-px bg-base-content/8" />
+          }
           const Icon = item.icon
           return (
             <NavLink
