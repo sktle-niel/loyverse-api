@@ -308,11 +308,9 @@ export function Transfer() {
                       <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
                     </svg>
                     Syncing from Loyverse…
-                    {syncProgress && (
-                      <span className="font-semibold text-warning">
-                        {syncProgress.percent}%
-                      </span>
-                    )}
+                    <span className="font-semibold text-warning">
+                      {syncProgress ? `${syncProgress.percent}%` : '0%'}
+                    </span>
                   </p>
                   {syncProgress?.etaSeconds != null && (
                     <p className="text-xs text-base-content/35 shrink-0">
@@ -320,14 +318,12 @@ export function Transfer() {
                     </p>
                   )}
                 </div>
-                {syncProgress && (
-                  <div className="w-full max-w-xs h-1.5 rounded-full bg-base-content/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-warning transition-all duration-500"
-                      style={{ width: `${syncProgress.percent}%` }}
-                    />
-                  </div>
-                )}
+                <div className="w-full max-w-xs h-1.5 rounded-full bg-base-content/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-warning transition-all duration-500"
+                    style={{ width: `${syncProgress?.percent ?? 0}%` }}
+                  />
+                </div>
                 {syncProgress && (
                   <p className="text-[10px] text-base-content/30">
                     {syncProgress.recordsFetched.toLocaleString()} / {syncProgress.totalExpected.toLocaleString()} records

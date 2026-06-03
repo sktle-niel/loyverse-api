@@ -3,7 +3,7 @@ import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockLevelProduct, StockLevelsResponse, StoreInfo, SyncProgress } from '../api/types'
 
 const BACKGROUND_POLL_MS = 5_000
-const AUTO_REFRESH_MS    = 3 * 60 * 60 * 1000 // 3 hours
+const AUTO_REFRESH_MS    = 3 * 60 * 1000 // 3 min — just over the 2-min server TTL so we catch new syncs quickly
 const PAUSED_STORAGE_KEY    = 'sktle_stocks_paused'
 const RESETTING_STORAGE_KEY = 'sktle_stocks_resetting'
 
