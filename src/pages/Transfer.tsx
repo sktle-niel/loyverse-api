@@ -345,7 +345,7 @@ export function Transfer() {
             <button
               type="button"
               className={`btn btn-sm btn-ghost border shrink-0 ${isPaused ? 'text-success border-success/20 hover:bg-success/8' : 'text-base-content/50 border-base-content/10 hover:text-base-content hover:border-base-content/20'}`}
-              disabled={isLoading}
+              disabled={isLoading || isResetting}
               onClick={() => isPaused ? resume() : pause()}
             >
               {isPaused ? (

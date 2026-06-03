@@ -1,9 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiFetchJson } from '../api/client'
+import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockLevelProduct, StockLevelsResponse, StoreInfo, SyncProgress } from '../api/types'
 
 const BACKGROUND_POLL_MS = 5_000
 const AUTO_REFRESH_MS    = 3 * 60 * 60 * 1000 // 3 hours
+const PAUSED_STORAGE_KEY    = 'sktle_stocks_paused'
+const RESETTING_STORAGE_KEY = 'sktle_stocks_resetting'
+
+function getPersistedPaused(): boolean {
+  try { return sessionStorage.getItem(PAUSED_STORAGE_KEY) === '1' } catch { return false }
+}
+
+function setPersistedPaused(value: boolean): void {
+  try {
+    if (value) sessionStorage.setItem(PAUSED_STORAGE_KEY, '1')
+    else sessionStorage.removeItem(PAUSED_STORAGE_KEY)
+  } catch { /* ok — sessionStorage might not be available */ }
+}
+
+function getPersistedResetting(): boolean {
+  try { return sessionStorage.getItem(RESETTING_STORAGE_KEY) === '1' } catch { return false }
+}
+
+function setPersistedResetting(value: boolean): void {
+  try {
+    if (value) sessionStorage.setItem(RESETTING_STORAGE_KEY, '1')
+    else sessionStorage.removeItem(RESETTING_STORAGE_KEY)
+  } catch { /* ok */ }
+}
+
+// Module-level — survives component unmount/remount (navigation)
+let _paused = getPersistedPaused()
 
 export function useStockLevels() {
   const [products, setProducts] = useState<StockLevelProduct[]>([])
@@ -11,16 +38,15 @@ export function useStockLevels() {
   const [source, setSource] = useState<'loyverse' | 'mock'>('mock')
   const [cachedAt, setCachedAt] = useState<string | undefined>()
   const [isLoading, setIsLoading] = useState(true)
-  const [isResetting, setIsResetting] = useState(false)
+  const [isResetting, setIsResetting] = useState(getPersistedResetting)
   const [isServerLoading, setIsServerLoading] = useState(false)
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null)
-  const [isPaused, setIsPaused] = useState(false)
+  const [isPaused, setIsPaused] = useState(_paused) // init from persisted state
   const [error, setError] = useState<string | null>(null)
 
   const serverPollRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isFetchingRef  = useRef(false)
-  const isPausedRef    = useRef(false)
 
   const clearServerPoll = () => {
     if (serverPollRef.current) { clearInterval(serverPollRef.current); serverPollRef.current = null }
@@ -30,20 +56,20 @@ export function useStockLevels() {
     if (autoRefreshRef.current) { clearInterval(autoRefreshRef.current); autoRefreshRef.current = null }
   }
 
-  const startAutoRefresh = useCallback(() => {
-    clearAutoRefresh()
-    autoRefreshRef.current = setInterval(() => {
-      if (!isPausedRef.current) void fetchLevels(false, true)
-    }, AUTO_REFRESH_MS)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   const fetchLevels = useCallback(async (refresh = false, silent = false) => {
     if (silent && isFetchingRef.current) return
     isFetchingRef.current = true
 
+    // Capture before async work — true if we're recovering a reset state after reload
+    const wasResetting = getPersistedResetting()
+
     if (!silent) {
-      if (refresh) setIsResetting(true)
-      else setIsLoading(true)
+      if (refresh) {
+        setIsResetting(true)
+        setPersistedResetting(true) // persist so page reload shows "Resetting…"
+      } else {
+        setIsLoading(true)
+      }
     }
     setError(null)
 
@@ -58,7 +84,20 @@ export function useStockLevels() {
       setIsServerLoading(res.isLoadingInBackground ?? false)
       setSyncProgress(res.syncProgress ?? null)
 
-      if (res.isLoadingInBackground && !isPausedRef.current) {
+      // Keep isResetting alive while the server is still doing the full sync triggered by
+      // reset. Clears automatically as soon as the background sync finishes.
+      // This also handles the page-reload case (wasResetting = true from sessionStorage).
+      if (refresh || wasResetting) {
+        if (res.isLoadingInBackground) {
+          setPersistedResetting(true)
+          setIsResetting(true)
+        } else {
+          setPersistedResetting(false)
+          setIsResetting(false)
+        }
+      }
+
+      if (res.isLoadingInBackground && !_paused) {
         clearServerPoll()
         serverPollRef.current = setInterval(() => {
           void fetchLevels(false, true)
@@ -71,31 +110,58 @@ export function useStockLevels() {
       setError(msg.includes('timed out')
         ? 'Server is still loading stock data. Please wait and try again.'
         : msg)
+      // Clear resetting on error so the UI doesn't get stuck
+      if (refresh || wasResetting) {
+        setPersistedResetting(false)
+        setIsResetting(false)
+      }
     } finally {
       isFetchingRef.current = false
       if (!silent) {
         setIsLoading(false)
-        setIsResetting(false)
+        // Do NOT clear isResetting here for reset-triggered fetches — it's managed by
+        // the response handler above based on whether the server is still loading.
+        if (!refresh && !wasResetting) {
+          setIsResetting(false)
+        }
       }
     }
   }, [])
 
+  const startAutoRefresh = useCallback(() => {
+    clearAutoRefresh()
+    autoRefreshRef.current = setInterval(() => {
+      if (!_paused) void fetchLevels(false, true)
+    }, AUTO_REFRESH_MS)
+  }, [fetchLevels])
+
   const pause = useCallback(() => {
-    isPausedRef.current = true
+    _paused = true
+    setPersistedPaused(true)
     setIsPaused(true)
+    // Stopping also ends any active "resetting" state
+    setPersistedResetting(false)
+    setIsResetting(false)
     clearServerPoll()
     clearAutoRefresh()
+    // Tell the backend to stop the in-progress sync at the next page boundary
+    void apiPostJson('/stocks/stop').catch(() => { /* fire-and-forget */ })
   }, [])
 
   const resume = useCallback(() => {
-    isPausedRef.current = false
+    _paused = false
+    setPersistedPaused(false)
     setIsPaused(false)
     startAutoRefresh()
-    void fetchLevels(false, true)
+    // Tell the backend to resume (continues from saved cursor if available), then poll
+    void apiPostJson('/stocks/resume')
+      .then(() => { void fetchLevels(false, true) })
+      .catch(() => { void fetchLevels(false, true) })
   }, [fetchLevels, startAutoRefresh])
 
   const reset = useCallback(() => {
-    isPausedRef.current = false
+    _paused = false
+    setPersistedPaused(false)
     setIsPaused(false)
     clearServerPoll()
     clearAutoRefresh()
@@ -104,8 +170,9 @@ export function useStockLevels() {
   }, [fetchLevels, startAutoRefresh])
 
   useEffect(() => {
+    // Always fetch on mount to populate data (even when paused, shows cached data without polling)
     void fetchLevels(false)
-    startAutoRefresh()
+    if (!_paused) startAutoRefresh()
     return () => {
       clearServerPoll()
       clearAutoRefresh()
