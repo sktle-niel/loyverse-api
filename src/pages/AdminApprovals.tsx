@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
+import { useTransferRequests } from '../hooks/useTransferRequests'
 import { useStores } from '../hooks/useStores'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 
 const STORAGE_KEY = 'submittedApprovals'
+const TRANSFER_STORAGE_KEY = 'submittedTransferApprovals'
 const STALE_MS = 10 * 60 * 1000
+const TRANSFER_STALE_MS = 4 * 60 * 1000 // transfers timeout after 4 min — clears stuck Processing state
 
 function readStoredIds(): Set<string> {
   try {
@@ -39,6 +44,35 @@ function deleteStoredId(id: string) {
   } catch { /* ignore */ }
 }
 
+function readTransferStoredIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(TRANSFER_STORAGE_KEY)
+    if (!raw) return new Set()
+    const entries = JSON.parse(raw) as Array<{ id: string; submittedAt: number }>
+    const now = Date.now()
+    return new Set(entries.filter((e) => now - e.submittedAt < TRANSFER_STALE_MS).map((e) => e.id))
+  } catch { return new Set() }
+}
+
+function writeTransferStoredId(id: string) {
+  try {
+    const raw = localStorage.getItem(TRANSFER_STORAGE_KEY)
+    const entries: Array<{ id: string; submittedAt: number }> = raw ? JSON.parse(raw) : []
+    const updated = entries.filter((e) => e.id !== id)
+    updated.push({ id, submittedAt: Date.now() })
+    localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(updated))
+  } catch { /* ignore */ }
+}
+
+function deleteTransferStoredId(id: string) {
+  try {
+    const raw = localStorage.getItem(TRANSFER_STORAGE_KEY)
+    if (!raw) return
+    const entries: Array<{ id: string; submittedAt: number }> = JSON.parse(raw)
+    localStorage.setItem(TRANSFER_STORAGE_KEY, JSON.stringify(entries.filter((e) => e.id !== id)))
+  } catch { /* ignore */ }
+}
+
 function MobileSkeletonCard() {
   return (
     <div className="p-4 border-b border-base-content/6 space-y-2.5">
@@ -69,6 +103,7 @@ function SkeletonRow() {
 
 export function AdminApprovals() {
   const { showToast } = useToast()
+  const { user } = useAuth()
   const { stores } = useStores()
   const {
     requests: stockRequests,
@@ -79,11 +114,25 @@ export function AdminApprovals() {
     refetch,
   } = useStockRequests('pending', true)
 
+  const {
+    requests: transferRequests,
+    isLoading: isTransferLoading,
+    hasFetched: transferHasFetched,
+    fetchRequests: fetchTransfers,
+    approveTransfer,
+    rejectTransfer,
+  } = useTransferRequests()
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') === 'transfers' ? 'transfers' : 'stock') as 'stock' | 'transfers'
+  const setActiveTab = (tab: 'stock' | 'transfers') => setSearchParams({ tab }, { replace: true })
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
   const [bgTick, setBgTick] = useState(0)
+  const [bgTransferTick, setBgTransferTick] = useState(0)
   const backgroundIds = useMemo(() => readStoredIds(), [bgTick])
+  const backgroundTransferIds = useMemo(() => readTransferStoredIds(), [bgTransferTick])
 
   const storeNameById = useMemo(
     () => new Map(stores.map((s) => [s.id, s.name])),
@@ -107,6 +156,74 @@ export function AdminApprovals() {
     const interval = setInterval(() => { void refetch('pending') }, 15_000)
     return () => clearInterval(interval)
   }, [backgroundIds, refetch])
+
+  useEffect(() => {
+    void fetchTransfers('pending')
+  }, [fetchTransfers])
+
+  useEffect(() => {
+    if (activeTab === 'transfers') void fetchTransfers('pending')
+  }, [activeTab, fetchTransfers])
+
+  // Detect when a background transfer approval completes
+  useEffect(() => {
+    if (!transferHasFetched || isTransferLoading || backgroundTransferIds.size === 0) return
+    const pendingIdSet = new Set(transferRequests.map((r) => r.id))
+    for (const id of backgroundTransferIds) {
+      if (!pendingIdSet.has(id)) {
+        deleteTransferStoredId(id)
+        setBgTransferTick((t) => t + 1)
+        showToast({ message: 'Transfer approved. Loyverse stock updated.', durationMs: 6000 })
+      }
+    }
+  }, [transferHasFetched, isTransferLoading, transferRequests, backgroundTransferIds, showToast])
+
+  // Poll transfer requests while a background approval is in-flight
+  useEffect(() => {
+    if (backgroundTransferIds.size === 0) return
+    const interval = setInterval(() => { void fetchTransfers('pending') }, 15_000)
+    return () => clearInterval(interval)
+  }, [backgroundTransferIds, fetchTransfers])
+
+  const handleApproveTransfer = async (id: string) => {
+    writeTransferStoredId(id)
+    setBgTransferTick((t) => t + 1)
+    setApprovingIds((prev) => new Set(prev).add(id))
+    try {
+      await approveTransfer(id, user?.displayName ?? 'Admin')
+      deleteTransferStoredId(id)
+      setBgTransferTick((t) => t + 1)
+      setDoneIds((prev) => new Set(prev).add(id))
+      showToast({ message: 'Transfer approved. Loyverse stock updated.', durationMs: 6000 })
+      void fetchTransfers('pending')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to approve transfer.'
+      if (msg.includes('timed out')) {
+        showToast({ message: 'Approval submitted. Server is processing — will update in ~1 minute.', durationMs: 15000 })
+      } else {
+        deleteTransferStoredId(id)
+        setBgTransferTick((t) => t + 1)
+        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000 })
+      }
+    } finally {
+      setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    }
+  }
+
+  const handleRejectTransfer = async (id: string) => {
+    setRejectingIds((prev) => new Set(prev).add(id))
+    try {
+      await rejectTransfer(id, user?.displayName ?? 'Admin')
+      setDoneIds((prev) => new Set(prev).add(id))
+      showToast({ message: 'Transfer rejected.', durationMs: 4000 })
+      void fetchTransfers('pending')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to reject transfer.'
+      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000 })
+    } finally {
+      setRejectingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    }
+  }
 
   const handleApprove = async (id: string) => {
     writeStoredId(id)
@@ -210,16 +327,16 @@ export function AdminApprovals() {
   return (
     <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-7 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Admin</p>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Stock approvals</h1>
-            <p className="text-sm text-base-content/45 mt-1">Review pending stock changes submitted by operators</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Approvals</h1>
+            <p className="text-sm text-base-content/45 mt-1">Review pending requests from operators</p>
           </div>
           <button
             type="button"
             className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
-            onClick={() => refetch('pending')}
+            onClick={() => activeTab === 'stock' ? refetch('pending') : void fetchTransfers('pending')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
@@ -228,6 +345,26 @@ export function AdminApprovals() {
             Refresh
           </button>
         </header>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-5 border-b border-base-content/8">
+          <button
+            type="button"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors duration-150 ${activeTab === 'stock' ? 'border-primary text-primary' : 'border-transparent text-base-content/45 hover:text-base-content'}`}
+            onClick={() => setActiveTab('stock')}
+          >
+            Stock changes
+            {stockRequests.length > 0 && <span className="ml-2 text-xs bg-warning/15 text-warning rounded-full px-1.5 py-0.5">{stockRequests.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors duration-150 ${activeTab === 'transfers' ? 'border-primary text-primary' : 'border-transparent text-base-content/45 hover:text-base-content'}`}
+            onClick={() => setActiveTab('transfers')}
+          >
+            Transfers
+            {transferRequests.length > 0 && <span className="ml-2 text-xs bg-warning/15 text-warning rounded-full px-1.5 py-0.5">{transferRequests.length}</span>}
+          </button>
+        </div>
 
         {error ? (
           <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-error/25 bg-error/8 px-4 py-3 text-sm text-error mb-5">
@@ -238,7 +375,7 @@ export function AdminApprovals() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
+        {activeTab === 'stock' && <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
 
           {/* Mobile: card layout */}
           <div className="sm:hidden divide-y divide-base-content/6">
@@ -372,7 +509,128 @@ export function AdminApprovals() {
             </table>
           </div>
 
-        </div>
+        </div>}
+
+        {activeTab === 'transfers' && (
+          <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-base-content/8 bg-base-content/3">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Item</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">From</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">To</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Qty</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Requested by</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">When</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isTransferLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
+                  ) : transferRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center text-sm text-base-content/40">No pending transfer requests</td>
+                    </tr>
+                  ) : (
+                    transferRequests.map((req, index) => {
+                      const isApproving = approvingIds.has(req.id)
+                      const isRejecting = rejectingIds.has(req.id)
+                      const isDone = doneIds.has(req.id)
+                      const isBackground = backgroundTransferIds.has(req.id)
+                      const isDisabled = isApproving || isRejecting || isDone || isBackground
+                      return (
+                        <tr key={req.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
+                          <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
+                          <td className="py-3.5 px-4 text-base-content/60 text-xs">{req.fromStoreName}</td>
+                          <td className="py-3.5 px-4 text-base-content/60 text-xs">{req.toStoreName}</td>
+                          <td className="py-3.5 px-4 text-base-content/80 tabular font-medium">{req.quantity}</td>
+                          <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
+                          <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{new Date(req.createdAt).toLocaleString()}</td>
+                          <td className="py-3.5 px-4">
+                            {isBackground ? (
+                              <span className="flex items-center gap-1.5 text-xs text-base-content/40">
+                                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                                </svg>
+                                Processing…
+                              </span>
+                            ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[4.5rem] justify-center"
+                                disabled={isDisabled}
+                                onClick={() => void handleApproveTransfer(req.id)}
+                              >
+                                {isApproving ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[3.75rem] justify-center"
+                                disabled={isDisabled}
+                                onClick={() => void handleRejectTransfer(req.id)}
+                              >
+                                {isRejecting ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                                Reject
+                              </button>
+                            </div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile transfers */}
+            <div className="sm:hidden divide-y divide-base-content/6">
+              {isTransferLoading ? (
+                Array.from({ length: 4 }).map((_, i) => <MobileSkeletonCard key={i} />)
+              ) : transferRequests.length === 0 ? (
+                <div className="py-16 text-center"><p className="text-sm text-base-content/40">No pending transfer requests</p></div>
+              ) : (
+                transferRequests.map((req, index) => {
+                  const isBg = backgroundTransferIds.has(req.id)
+                  const isDisabled = approvingIds.has(req.id) || rejectingIds.has(req.id) || doneIds.has(req.id) || isBg
+                  return (
+                  <div key={req.id} className="p-4 space-y-2.5 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
+                    <p className="font-medium text-sm text-base-content">{req.itemName}</p>
+                    <div className="text-xs text-base-content/55 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span>{req.fromStoreName}</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <span>{req.toStoreName}</span>
+                        <span className="ml-auto font-semibold text-base-content/80">{req.quantity} units</span>
+                      </div>
+                      <div className="flex justify-between"><span>{req.requestedBy}</span><span className="text-base-content/40">{new Date(req.createdAt).toLocaleString()}</span></div>
+                    </div>
+                    {isBg ? (
+                      <span className="flex items-center gap-1.5 text-xs text-base-content/40">
+                        <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>
+                        Processing…
+                      </span>
+                    ) : (
+                    <div className="flex gap-2">
+                      <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40" disabled={isDisabled} onClick={() => void handleApproveTransfer(req.id)}>
+                        Approve
+                      </button>
+                      <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40" disabled={isDisabled} onClick={() => void handleRejectTransfer(req.id)}>
+                        Reject
+                      </button>
+                    </div>
+                    )}
+                  </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )
