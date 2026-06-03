@@ -185,7 +185,6 @@ export function ItemSearch() {
     showToast({ message: 'Transfer request submitted for admin approval.', durationMs: 6000 })
   }
 
-  const colCount = 2 + stores.length
   const hasResults = products.length > 0
 
   return (
