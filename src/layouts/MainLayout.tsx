@@ -9,7 +9,7 @@ import { AdminOperators } from '../pages/AdminOperators'
 import { History } from '../pages/History'
 import { OperatorQueue } from '../pages/OperatorQueue'
 import { Transfer } from '../pages/Transfer'
-import { ItemSearch } from '../pages/ItemSearch'
+import { TransferHistory } from '../pages/TransferHistory'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { ROUTES } from '../constants/app'
@@ -80,7 +80,7 @@ export function MainLayout() {
           <Route path={ROUTES.OPERATORS} element={isAdmin ? <AdminOperators /> : <Navigate to={ROUTES.INVENTORY} replace />} />
           <Route path={ROUTES.QUEUE} element={!isAdmin ? <OperatorQueue /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.TRANSFER} element={!isAdmin ? <Transfer /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.ITEM_SEARCH} element={!isAdmin ? <ItemSearch /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.TRANSFER_HISTORY} element={<TransferHistory />} />
           <Route path="*" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
         </Routes>
 
