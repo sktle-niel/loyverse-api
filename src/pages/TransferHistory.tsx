@@ -78,6 +78,14 @@ function ReviewedCell({ r }: { r: TransferRequest }) {
   )
 }
 
+const HISTORY_TAB_KEY = 'sktle_history_tab'
+function getPersistedTab(): string {
+  try { return sessionStorage.getItem(HISTORY_TAB_KEY) ?? 'all' } catch { return 'all' }
+}
+function setPersistedTab(v: string): void {
+  try { sessionStorage.setItem(HISTORY_TAB_KEY, v) } catch { /* ok */ }
+}
+
 export function TransferHistory() {
   const { requests, isLoading, error, fetchRequests } = useTransferRequests()
   const { isAdmin } = useAuth()
@@ -85,7 +93,12 @@ export function TransferHistory() {
   const [selectedYear,  setSelectedYear]  = useState('')
   const [selectedMonth, setSelectedMonth] = useState('')
   const [selectedDate,  setSelectedDate]  = useState('')
-  const [statusFilter,  setStatusFilter]  = useState('all')
+  const [statusFilter,  setStatusFilter]  = useState(getPersistedTab)
+
+  const handleTabChange = (value: string) => {
+    setStatusFilter(value)
+    setPersistedTab(value)
+  }
 
   useEffect(() => { void fetchRequests() }, [fetchRequests])
 
@@ -214,43 +227,50 @@ export function TransferHistory() {
               </div>
             </div>
 
-            {/* Vertical divider */}
-            <div className="w-px bg-base-content/10 h-8 mb-0.5 shrink-0" />
-
-            {/* Status */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-base-content/45 pl-0.5">Status</span>
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                disabled={isLoading || noData}
-                className="select select-sm select-bordered bg-base-100 w-36 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
           </div>
         </div>
 
-        {/* Date label + summary chips */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <p className="text-sm font-medium text-base-content/70">
-            {selectedDate ? formatDateLabel(selectedDate) : ''}
+        {/* Date label */}
+        {selectedDate && (
+          <p className="text-sm font-medium text-base-content/70 mb-3">
+            {formatDateLabel(selectedDate)}
           </p>
-          {!isLoading && summary.total > 0 && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span className="text-base-content/40">{summary.total} total</span>
-              {summary.approved  > 0 && <span className="text-success font-medium">{summary.approved} approved</span>}
-              {summary.pending   > 0 && <span className="text-warning font-medium">{summary.pending} pending</span>}
-              {summary.rejected  > 0 && <span className="text-error font-medium">{summary.rejected} rejected</span>}
-              {summary.cancelled > 0 && <span className="text-base-content/35">{summary.cancelled} cancelled</span>}
-            </div>
-          )}
+        )}
+
+        {/* Status tabs */}
+        <div className="relative flex items-center gap-0.5 mb-4 overflow-x-auto after:absolute after:bottom-0 after:inset-x-0 after:h-px after:bg-base-content/8">
+          {([
+            { value: 'all',       label: 'All',       count: summary.total     },
+            { value: 'pending',   label: 'Pending',   count: summary.pending   },
+            { value: 'approved',  label: 'Approved',  count: summary.approved  },
+            { value: 'rejected',  label: 'Rejected',  count: summary.rejected  },
+            { value: 'cancelled', label: 'Cancelled', count: summary.cancelled },
+          ] as const).map(tab => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => handleTabChange(tab.value)}
+              className={`relative flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
+                statusFilter === tab.value
+                  ? 'text-primary'
+                  : 'text-base-content/45 hover:text-base-content'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`text-[10px] font-semibold tabular px-1.5 py-px rounded-full ${
+                  statusFilter === tab.value
+                    ? 'bg-primary/12 text-primary'
+                    : 'bg-base-content/8 text-base-content/40'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+              {statusFilter === tab.value && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10" />
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Error */}
@@ -288,7 +308,7 @@ export function TransferHistory() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-medium text-sm text-base-content leading-snug truncate">{r.itemName}</p>
+                    <p className="font-medium text-sm text-base-content leading-snug">{r.itemName}</p>
                     {r.sku && <p className="text-xs text-base-content/40 mt-0.5">{r.sku}</p>}
                   </div>
                   <StatusBadge status={r.status} />
@@ -359,8 +379,8 @@ export function TransferHistory() {
                       <td className="py-3.5 px-4 text-xs text-base-content/45 tabular whitespace-nowrap">
                         {formatTime(r.createdAt)}
                       </td>
-                      <td className="py-3.5 px-4 max-w-0">
-                        <p className="font-medium text-base-content truncate">{r.itemName}</p>
+                      <td className="py-3.5 px-4">
+                        <p className="font-medium text-base-content">{r.itemName}</p>
                         {r.sku && <p className="text-xs text-base-content/40 mt-0.5">{r.sku}</p>}
                       </td>
                       <td className="py-3.5 px-4 text-xs text-base-content/60 whitespace-nowrap">

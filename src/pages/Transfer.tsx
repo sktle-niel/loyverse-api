@@ -421,7 +421,7 @@ export function Transfer() {
 
         <div className="rounded-xl border border-base-content/8 bg-base-100 overflow-hidden">
 
-          {/* Mobile: card layout */}
+          {/* Mobile: table-row layout */}
           <div className="sm:hidden divide-y divide-base-content/6">
             {isLoading && products.length === 0 ? (
               Array.from({ length: 6 }).map((_, i) => <MobileSkeletonCard key={i} />)
@@ -435,35 +435,36 @@ export function Transfer() {
               paginated.map((p, index) => (
                 <div
                   key={p.id}
-                  className="p-4 space-y-2.5 animate-row"
+                  className="px-4 py-3.5 animate-row"
                   style={{ animationDelay: `${index * 20}ms` }}
                 >
-                  <div>
-                    <p className="font-medium text-sm text-base-content leading-snug">{p.name}</p>
-                    {p.sku && <p className="text-xs text-base-content/40 mt-0.5">{p.sku}</p>}
+                  {/* Product header + transfer button */}
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-base-content leading-snug">{p.name}</p>
+                      {p.sku && <p className="text-xs text-base-content/40 mt-0.5">{p.sku}</p>}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors duration-150"
+                      onClick={() => setTransferTarget(p)}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h14" />
+                        <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+                      </svg>
+                      Transfer
+                    </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Branch stock rows */}
+                  <div className="space-y-1">
                     {p.stocks.map((s) => (
-                      <div
-                        key={s.storeId}
-                        className="rounded-lg border border-base-content/8 bg-base-200/50 px-3 py-2"
-                      >
-                        <p className="text-[10px] text-base-content/45 truncate mb-0.5">{s.storeName}</p>
+                      <div key={s.storeId} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-base-content/45 truncate">{s.storeName}</span>
                         <StockBadge count={s.stock} />
                       </div>
                     ))}
                   </div>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors duration-150 w-fit"
-                    onClick={() => setTransferTarget(p)}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 014-4h14" />
-                      <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 01-4 4H3" />
-                    </svg>
-                    Request transfer
-                  </button>
                 </div>
               ))
             )}
