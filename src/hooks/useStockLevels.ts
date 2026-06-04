@@ -3,7 +3,7 @@ import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockLevelProduct, StockLevelsResponse, StoreInfo, SyncProgress } from '../api/types'
 
 const BACKGROUND_POLL_MS = 5_000
-const AUTO_REFRESH_MS    = 45 * 1000 // 45 sec — just over the 30-sec server TTL so the frontend stays in sync
+const AUTO_REFRESH_MS    = 5 * 60 * 1000 // 5 min — poll for fresh data every 5 minutes
 const PAUSED_STORAGE_KEY    = 'sktle_stocks_paused'
 const RESETTING_STORAGE_KEY = 'sktle_stocks_resetting'
 
@@ -174,16 +174,11 @@ export function useStockLevels() {
   }, [fetchLevels, startAutoRefresh])
 
   useEffect(() => {
-    if (_paused) {
-      // When paused, just show cached data without triggering a sync
-      void fetchLevels(false)
-    } else {
-      // Always trigger a full sync on mount so the page loads the latest data immediately
-      setIsServerLoading(true)
-      setSyncProgress(null)
-      void fetchLevels(true)
-      startAutoRefresh()
-    }
+    // Fetch current state on mount — if a sync is already running (another tab/device started
+    // it) this picks up the progress without restarting it. A full sync only triggers when
+    // the cache TTL expires or the user clicks Reset.
+    void fetchLevels(false)
+    if (!_paused) startAutoRefresh()
     return () => {
       clearServerPoll()
       clearAutoRefresh()
