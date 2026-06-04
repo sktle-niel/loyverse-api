@@ -405,7 +405,7 @@ export function Transfer() {
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full rounded-lg border border-base-content/12 bg-base-100 pl-9 pr-3.5 py-2 text-sm text-base-content placeholder:text-base-content/30 outline-none focus:border-primary/60 transition-colors duration-150"
-              disabled={isLoading && products.length === 0}
+              disabled={(isLoading || isServerLoading) && products.length === 0}
             />
           </div>
         </div>
@@ -423,7 +423,7 @@ export function Transfer() {
 
           {/* Mobile: table-row layout */}
           <div className="sm:hidden divide-y divide-base-content/6">
-            {isLoading && products.length === 0 ? (
+            {(isLoading || isServerLoading) && products.length === 0 ? (
               Array.from({ length: 6 }).map((_, i) => <MobileSkeletonCard key={i} />)
             ) : filtered.length === 0 ? (
               <div className="py-16 text-center">
@@ -486,7 +486,7 @@ export function Transfer() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading && products.length === 0 ? (
+                {(isLoading || isServerLoading) && products.length === 0 ? (
                   Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} cols={colCount} />)
                 ) : filtered.length === 0 ? (
                   <tr>
