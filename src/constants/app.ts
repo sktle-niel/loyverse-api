@@ -5,6 +5,7 @@ export const ROUTES = {
   HISTORY: '/history',
   OPERATORS: '/operators',
   QUEUE: '/queue',
+  PENDING: '/pending',
   TRANSFER: '/transfer',
   TRANSFER_HISTORY: '/transfer-history',
 } as const
