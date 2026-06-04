@@ -174,9 +174,16 @@ export function useStockLevels() {
   }, [fetchLevels, startAutoRefresh])
 
   useEffect(() => {
-    // Always fetch on mount to populate data (even when paused, shows cached data without polling)
-    void fetchLevels(false)
-    if (!_paused) startAutoRefresh()
+    if (_paused) {
+      // When paused, just show cached data without triggering a sync
+      void fetchLevels(false)
+    } else {
+      // Always trigger a full sync on mount so the page loads the latest data immediately
+      setIsServerLoading(true)
+      setSyncProgress(null)
+      void fetchLevels(true)
+      startAutoRefresh()
+    }
     return () => {
       clearServerPoll()
       clearAutoRefresh()
