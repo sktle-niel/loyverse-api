@@ -3,7 +3,7 @@ import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockLevelProduct, StockLevelsResponse, StoreInfo, SyncProgress } from '../api/types'
 
 const BACKGROUND_POLL_MS = 5_000
-const AUTO_REFRESH_MS    = 3 * 60 * 1000 // 3 min — just over the 2-min server TTL so we catch new syncs quickly
+const AUTO_REFRESH_MS    = 45 * 1000 // 45 sec — just over the 30-sec server TTL so the frontend stays in sync
 const PAUSED_STORAGE_KEY    = 'sktle_stocks_paused'
 const RESETTING_STORAGE_KEY = 'sktle_stocks_resetting'
 
@@ -131,7 +131,9 @@ export function useStockLevels() {
   const startAutoRefresh = useCallback(() => {
     clearAutoRefresh()
     autoRefreshRef.current = setInterval(() => {
-      if (!_paused) void fetchLevels(false, true)
+      // Skip if a background-poll interval is already fetching every 5s during a sync.
+      // This prevents double-polling while the server is doing a full sync.
+      if (!_paused && !serverPollRef.current) void fetchLevels(false, true)
     }, AUTO_REFRESH_MS)
   }, [fetchLevels])
 
@@ -163,6 +165,8 @@ export function useStockLevels() {
     _paused = false
     setPersistedPaused(false)
     setIsPaused(false)
+    setIsServerLoading(true) // show progress bar immediately, before API response
+    setSyncProgress(null)    // clear any stale progress from a previous sync
     clearServerPoll()
     clearAutoRefresh()
     void fetchLevels(true)
