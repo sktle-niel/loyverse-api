@@ -161,7 +161,6 @@ export function TransferHistory() {
   const summary = useMemo(() => ({
     total:     dateRequests.length,
     approved:  dateRequests.filter(r => r.status === 'approved').length,
-    pending:   dateRequests.filter(r => r.status === 'pending').length,
     rejected:  dateRequests.filter(r => r.status === 'rejected').length,
     cancelled: dateRequests.filter(r => r.status === 'cancelled').length,
   }), [dateRequests])
@@ -241,7 +240,6 @@ export function TransferHistory() {
         <div className="relative flex items-center gap-0.5 mb-4 overflow-x-auto after:absolute after:bottom-0 after:inset-x-0 after:h-px after:bg-base-content/8">
           {([
             { value: 'all',       label: 'All',       count: summary.total     },
-            { value: 'pending',   label: 'Pending',   count: summary.pending   },
             { value: 'approved',  label: 'Approved',  count: summary.approved  },
             { value: 'rejected',  label: 'Rejected',  count: summary.rejected  },
             { value: 'cancelled', label: 'Cancelled', count: summary.cancelled },
