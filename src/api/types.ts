@@ -135,8 +135,6 @@ export interface TransferRequest {
   toStoreId: string
   toStoreName: string
   quantity: number
-  fromStockBefore: number | null
-  toStockBefore: number | null
   fromStockCurrent?: number | null
   toStockCurrent?: number | null
   requestedBy: string
@@ -150,6 +148,16 @@ export interface TransferRequest {
 export interface TransferRequestsResponse {
   requests: TransferRequest[]
   total: number
+}
+
+export interface PendingTransferStock {
+  variantId: string
+  storeId: string
+  stock: number
+}
+
+export interface PendingTransferStocksResponse {
+  stocks: PendingTransferStock[]
 }
 
 export interface StockUpdateInput {
