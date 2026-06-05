@@ -77,10 +77,15 @@ export function useStockLevels() {
       const path = refresh ? '/stocks?refresh=1' : '/stocks'
       const res = await apiFetchJson<StockLevelsResponse>(path, { timeoutMs: 60_000 })
 
-      setProducts(res.products)
-      setStores(res.stores)
-      setSource(res.source)
-      setCachedAt(res.cachedAt)
+      // During a full sync the backend returns empty products until partial results arrive.
+      // Keep the previous products/stores visible so the Transfer button stays usable.
+      // Only clear them once real data arrives or the sync finishes.
+      if (res.products.length > 0 || !res.isLoadingInBackground) {
+        setProducts(res.products)
+        setStores(res.stores)
+        setSource(res.source)
+        setCachedAt(res.cachedAt)
+      }
       setIsServerLoading(res.isLoadingInBackground ?? false)
       setSyncProgress(res.syncProgress ?? null)
 
