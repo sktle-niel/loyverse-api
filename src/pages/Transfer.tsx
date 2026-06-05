@@ -291,7 +291,7 @@ export function Transfer() {
       quantity,
       requestedBy: user?.displayName ?? 'Operator',
     })
-    showToast({ message: 'Transfer request submitted for admin approval.', durationMs: 6000 })
+    showToast({ message: 'Transfer done. Stock updated in Loyverse.', durationMs: 6000 })
   }
 
   function formatEta(seconds: number): string {
