@@ -185,6 +185,14 @@ export function AdminApprovals() {
     return () => clearInterval(interval)
   }, [backgroundTransferIds, fetchTransfers])
 
+  // Auto-refresh transfers every 30s when on the transfers tab so live stock
+  // numbers stay current (delta sync updates cache every ~15s on the backend).
+  useEffect(() => {
+    if (activeTab !== 'transfers') return
+    const interval = setInterval(() => { void fetchTransfers('pending') }, 30_000)
+    return () => clearInterval(interval)
+  }, [activeTab, fetchTransfers])
+
   const handleApproveTransfer = async (id: string) => {
     writeTransferStoredId(id)
     setBgTransferTick((t) => t + 1)
@@ -521,6 +529,7 @@ export function AdminApprovals() {
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">From</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">To</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Qty</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">From stock</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Requested by</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">When</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Actions</th>
@@ -531,7 +540,7 @@ export function AdminApprovals() {
                     Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
                   ) : transferRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-16 text-center text-sm text-base-content/40">No pending transfer requests</td>
+                      <td colSpan={8} className="py-16 text-center text-sm text-base-content/40">No pending transfer requests</td>
                     </tr>
                   ) : (
                     transferRequests.map((req, index) => {
@@ -540,12 +549,28 @@ export function AdminApprovals() {
                       const isDone = doneIds.has(req.id)
                       const isBackground = backgroundTransferIds.has(req.id)
                       const isDisabled = isApproving || isRejecting || isDone || isBackground
+                      const stockInsufficient = req.fromStockCurrent != null && req.fromStockCurrent < req.quantity
                       return (
                         <tr key={req.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                           <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
                           <td className="py-3.5 px-4 text-base-content/60 text-xs">{req.fromStoreName}</td>
                           <td className="py-3.5 px-4 text-base-content/60 text-xs">{req.toStoreName}</td>
                           <td className="py-3.5 px-4 text-base-content/80 tabular font-medium">{req.quantity}</td>
+                          <td className="py-3.5 px-4 tabular text-xs">
+                            {req.fromStockCurrent == null ? (
+                              <span className="text-base-content/30">—</span>
+                            ) : stockInsufficient ? (
+                              <span className="inline-flex items-center gap-1 text-warning font-semibold">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                                {req.fromStockCurrent}
+                              </span>
+                            ) : (
+                              <span className="text-base-content/70">{req.fromStockCurrent}</span>
+                            )}
+                          </td>
                           <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{new Date(req.createdAt).toLocaleString()}</td>
                           <td className="py-3.5 px-4">
@@ -603,6 +628,19 @@ export function AdminApprovals() {
                     <div className="text-xs text-base-content/55 space-y-0.5">
                       <div className="flex items-center gap-1.5">
                         <span>{req.fromStoreName}</span>
+                        {req.fromStockCurrent != null && (
+                          req.fromStockCurrent < req.quantity ? (
+                            <span className="inline-flex items-center gap-0.5 text-warning font-semibold">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                              </svg>
+                              {req.fromStockCurrent}
+                            </span>
+                          ) : (
+                            <span className="text-base-content/40">({req.fromStockCurrent})</span>
+                          )
+                        )}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                         <span>{req.toStoreName}</span>
                         <span className="ml-auto font-semibold text-base-content/80">{req.quantity} units</span>

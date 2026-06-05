@@ -137,6 +137,8 @@ export interface TransferRequest {
   quantity: number
   fromStockBefore: number | null
   toStockBefore: number | null
+  fromStockCurrent?: number | null
+  toStockCurrent?: number | null
   requestedBy: string
   status: TransferRequestStatus
   createdAt: string
