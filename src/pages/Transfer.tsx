@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useStockLevels } from '../hooks/useStockLevels'
 import { useTransferRequests } from '../hooks/useTransferRequests'
@@ -7,6 +7,8 @@ import { useToast } from '../context/ToastContext'
 import type { StockLevelProduct, StoreInfo } from '../api/types'
 
 const ITEMS_PER_PAGE = 15
+const LOCK_KEY = 'sktle_transfer_last_active'
+const INACTIVITY_LOCK_MS = 30 * 60 * 1000
 
 function stockColor(count: number): string {
   if (count === 0) return 'text-error font-semibold'
@@ -240,6 +242,44 @@ export function Transfer() {
   const { user } = useAuth()
   const { showToast } = useToast()
 
+  const [requiresReset, setRequiresReset] = useState(false)
+
+  // Lock Transfer buttons after 30 min of inactivity (tab hidden or away).
+  // localStorage tracks last-active so a close+reopen after 30 min also locks.
+  useEffect(() => {
+    const stored = localStorage.getItem(LOCK_KEY)
+    if (stored && Date.now() - Number(stored) >= INACTIVITY_LOCK_MS) {
+      setRequiresReset(true)
+    }
+    localStorage.setItem(LOCK_KEY, String(Date.now()))
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        localStorage.setItem(LOCK_KEY, String(Date.now()))
+      } else {
+        const s = localStorage.getItem(LOCK_KEY)
+        if (s && Date.now() - Number(s) >= INACTIVITY_LOCK_MS) {
+          setRequiresReset(true)
+        } else {
+          localStorage.setItem(LOCK_KEY, String(Date.now()))
+        }
+      }
+    }
+
+    // Keep localStorage fresh every 5 min while tab is visible
+    const keepAlive = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        localStorage.setItem(LOCK_KEY, String(Date.now()))
+      }
+    }, 5 * 60 * 1000)
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      clearInterval(keepAlive)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
+
   const [transferTarget, setTransferTarget] = useState<StockLevelProduct | null>(null)
 
   const handleTransferSubmit = async (fromStoreId: string, toStoreId: string, quantity: number) => {
@@ -366,7 +406,13 @@ export function Transfer() {
               type="button"
               className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
               disabled={isLoading || isResetting}
-              onClick={() => reset()}
+              onClick={() => {
+                if (requiresReset) {
+                  setRequiresReset(false)
+                  localStorage.setItem(LOCK_KEY, String(Date.now()))
+                }
+                reset()
+              }}
             >
               <svg
                 width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -376,7 +422,7 @@ export function Transfer() {
                 <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
                 <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
               </svg>
-              {isResetting ? 'Resetting…' : 'Reset'}
+              {isResetting ? 'Resetting…' : requiresReset ? 'Reset to unlock' : 'Reset'}
             </button>
           </div>
         </header>
@@ -387,6 +433,19 @@ export function Transfer() {
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>{error}</span>
+          </div>
+        )}
+
+        {requiresReset && !isServerLoading && !isResetting && (
+          <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/8 px-4 py-3 text-sm text-warning mb-5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-px">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+              <p className="font-medium">Transfer buttons locked</p>
+              <p className="text-xs text-warning/70 mt-0.5">You've been away for 30+ minutes. Click <strong>Reset to unlock</strong> to sync the latest stock data before transferring.</p>
+            </div>
           </div>
         )}
 
@@ -447,7 +506,7 @@ export function Transfer() {
                     <button
                       type="button"
                       className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none text-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
-                      disabled={isServerLoading}
+                      disabled={isServerLoading || requiresReset}
                       onClick={() => setTransferTarget(p)}
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -515,7 +574,7 @@ export function Transfer() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-base-content/45 hover:text-primary hover:bg-primary/8 border border-transparent hover:border-primary/20 transition-colors duration-150 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
-                          disabled={isServerLoading}
+                          disabled={isServerLoading || requiresReset}
                           onClick={() => setTransferTarget(p)}
                           title="Request stock transfer"
                         >
