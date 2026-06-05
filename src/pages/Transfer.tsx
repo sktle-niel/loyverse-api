@@ -446,7 +446,8 @@ export function Transfer() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors duration-150"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none text-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
+                      disabled={isServerLoading}
                       onClick={() => setTransferTarget(p)}
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -513,7 +514,8 @@ export function Transfer() {
                       <td className="py-3.5 px-3">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-base-content/45 hover:text-primary hover:bg-primary/8 border border-transparent hover:border-primary/20 transition-colors duration-150 whitespace-nowrap"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-base-content/45 hover:text-primary hover:bg-primary/8 border border-transparent hover:border-primary/20 transition-colors duration-150 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                          disabled={isServerLoading}
                           onClick={() => setTransferTarget(p)}
                           title="Request stock transfer"
                         >
