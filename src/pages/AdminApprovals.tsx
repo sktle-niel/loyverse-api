@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useTransferRequests } from '../hooks/useTransferRequests'
@@ -129,6 +129,9 @@ export function AdminApprovals() {
   const setActiveTab = (tab: 'stock' | 'transfers') => setSearchParams({ tab }, { replace: true })
   const [liveStockMap, setLiveStockMap] = useState<Map<string, number>>(new Map())
   const [isLiveChecking, setIsLiveChecking] = useState(false)
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set())
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set())
+  const syncTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
@@ -142,9 +145,31 @@ export function AdminApprovals() {
     try {
       const stocks = await fetchPendingStocks()
       setLiveStockMap(new Map(stocks.map((s) => [`${s.variantId}:${s.storeId}`, s.stock])))
-    } catch { /* silent — Approve button safeguard on backend still applies */ }
-    finally { setIsLiveChecking(false) }
+    } finally {
+      setIsLiveChecking(false)
+    }
+    // errors propagate — callers wrap in .catch() or await inside try/catch
   }, [fetchPendingStocks])
+
+  const handleSyncRequest = useCallback(async (id: string) => {
+    setSyncingIds((prev) => new Set(prev).add(id))
+    try {
+      await refreshLiveStocks()
+      setSyncedIds((prev) => new Set(prev).add(id))
+      // Clear any existing 30s timer for this id and start a fresh one
+      const existing = syncTimeoutsRef.current.get(id)
+      if (existing) clearTimeout(existing)
+      const t = setTimeout(() => {
+        setSyncedIds((prev) => { const s = new Set(prev); s.delete(id); return s })
+        syncTimeoutsRef.current.delete(id)
+      }, 30_000)
+      syncTimeoutsRef.current.set(id, t)
+    } catch {
+      showToast({ message: 'Stock check failed. Please try again.', durationMs: 4000 })
+    } finally {
+      setSyncingIds((prev) => { const s = new Set(prev); s.delete(id); return s })
+    }
+  }, [refreshLiveStocks, showToast])
 
   const storeNameById = useMemo(
     () => new Map(stores.map((s) => [s.id, s.name])),
@@ -197,14 +222,19 @@ export function AdminApprovals() {
     return () => clearInterval(interval)
   }, [backgroundTransferIds, fetchTransfers])
 
-  // When on the transfers tab: immediately fetch live stock directly from Loyverse
-  // for only the items in pending approvals, then repeat every 30s. This detects
-  // stock changes (sales, manual Loyverse edits) so admin always sees current numbers.
+  // Clear all sync timeouts on unmount
+  useEffect(() => {
+    const timeouts = syncTimeoutsRef.current
+    return () => { for (const t of timeouts.values()) clearTimeout(t) }
+  }, [])
+
+  // Background live-stock poll while on transfers tab — silent, just keeps liveStockMap fresh.
+  // Manual accuracy is handled by the per-row "Sync Now" button.
   useEffect(() => {
     if (activeTab !== 'transfers') return
-    void refreshLiveStocks()
+    void refreshLiveStocks().catch(() => {})
     const interval = setInterval(() => {
-      void refreshLiveStocks()
+      void refreshLiveStocks().catch(() => {})
       void fetchTransfers('pending')
     }, 15_000)
     return () => clearInterval(interval)
@@ -363,7 +393,7 @@ export function AdminApprovals() {
             className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
             onClick={() => {
               if (activeTab === 'stock') { refetch('pending') }
-              else { void fetchTransfers('pending'); void refreshLiveStocks() }
+              else { void fetchTransfers('pending'); void refreshLiveStocks().catch(() => {}) }
             }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -577,10 +607,12 @@ export function AdminApprovals() {
                       const isRejecting = rejectingIds.has(req.id)
                       const isDone = doneIds.has(req.id)
                       const isBackground = backgroundTransferIds.has(req.id)
+                      const isSyncing = syncingIds.has(req.id)
+                      const isSynced = syncedIds.has(req.id)
                       const liveFromStock = liveStockMap.get(`${req.variantId}:${req.fromStoreId}`)
                       const effectiveFromStock = liveFromStock !== undefined ? liveFromStock : req.fromStockCurrent
                       const isInsufficient = effectiveFromStock != null && effectiveFromStock < req.quantity
-                      const isDisabled = isApproving || isRejecting || isDone || isBackground || isInsufficient
+                      const isBaseDisabled = isApproving || isRejecting || isDone || isBackground
                       return (
                         <tr key={req.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                           <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
@@ -607,32 +639,62 @@ export function AdminApprovals() {
                           <td className="py-3.5 px-4">
                             {isBackground ? (
                               <span className="flex items-center gap-1.5 text-xs text-base-content/40">
-                                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-                                </svg>
+                                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>
                                 Processing…
                               </span>
+                            ) : isSyncing ? (
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1.5 text-xs text-primary/70">
+                                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>
+                                  Syncing…
+                                </span>
+                                <button type="button" disabled className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 opacity-40 cursor-not-allowed min-w-[3.75rem] justify-center">
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                  Reject
+                                </button>
+                              </div>
+                            ) : isSynced ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[4.5rem] justify-center"
+                                  disabled={isBaseDisabled || isInsufficient}
+                                  onClick={() => void handleApproveTransfer(req.id)}
+                                >
+                                  {isApproving ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[3.75rem] justify-center"
+                                  disabled={isBaseDisabled}
+                                  onClick={() => void handleRejectTransfer(req.id)}
+                                >
+                                  {isRejecting ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                                  Reject
+                                </button>
+                              </div>
                             ) : (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[4.5rem] justify-center"
-                                disabled={isDisabled}
-                                onClick={() => void handleApproveTransfer(req.id)}
-                              >
-                                {isApproving ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                                Approve
-                              </button>
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[3.75rem] justify-center"
-                                disabled={isDisabled}
-                                onClick={() => void handleRejectTransfer(req.id)}
-                              >
-                                {isRejecting ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
-                                Reject
-                              </button>
-                            </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-primary/8 text-primary border border-primary/20 hover:bg-primary/15 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[4.5rem] justify-center"
+                                  disabled={isBaseDisabled}
+                                  onClick={() => void handleSyncRequest(req.id)}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" /></svg>
+                                  Sync Now
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed min-w-[3.75rem] justify-center"
+                                  disabled={isBaseDisabled}
+                                  onClick={() => void handleRejectTransfer(req.id)}
+                                >
+                                  {isRejecting ? <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg> : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                                  Reject
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -652,10 +714,12 @@ export function AdminApprovals() {
               ) : (
                 transferRequests.map((req, index) => {
                   const isBg = backgroundTransferIds.has(req.id)
+                  const mIsSyncing = syncingIds.has(req.id)
+                  const mIsSynced = syncedIds.has(req.id)
                   const mobileLiveFromStock = liveStockMap.get(`${req.variantId}:${req.fromStoreId}`)
                   const mobileEffectiveFromStock = mobileLiveFromStock !== undefined ? mobileLiveFromStock : req.fromStockCurrent
                   const mobileInsufficient = mobileEffectiveFromStock != null && mobileEffectiveFromStock < req.quantity
-                  const isDisabled = approvingIds.has(req.id) || rejectingIds.has(req.id) || doneIds.has(req.id) || isBg || mobileInsufficient
+                  const mBaseDisabled = approvingIds.has(req.id) || rejectingIds.has(req.id) || doneIds.has(req.id) || isBg
                   return (
                   <div key={req.id} className="p-4 space-y-2.5 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                     <p className="font-medium text-sm text-base-content">{req.itemName}</p>
@@ -686,15 +750,32 @@ export function AdminApprovals() {
                         <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>
                         Processing…
                       </span>
+                    ) : mIsSyncing ? (
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-xs text-primary/70">
+                          <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" /></svg>
+                          Syncing…
+                        </span>
+                      </div>
+                    ) : mIsSynced ? (
+                      <div className="flex gap-2">
+                        <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled={mBaseDisabled || mobileInsufficient} onClick={() => void handleApproveTransfer(req.id)}>
+                          Approve
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled={mBaseDisabled} onClick={() => void handleRejectTransfer(req.id)}>
+                          Reject
+                        </button>
+                      </div>
                     ) : (
-                    <div className="flex gap-2">
-                      <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors duration-150 disabled:opacity-40" disabled={isDisabled} onClick={() => void handleApproveTransfer(req.id)}>
-                        Approve
-                      </button>
-                      <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40" disabled={isDisabled} onClick={() => void handleRejectTransfer(req.id)}>
-                        Reject
-                      </button>
-                    </div>
+                      <div className="flex gap-2">
+                        <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-primary/8 text-primary border border-primary/20 hover:bg-primary/15 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled={mBaseDisabled} onClick={() => void handleSyncRequest(req.id)}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" /></svg>
+                          Sync Now
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-error/10 text-error border border-error/20 hover:bg-error/20 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed" disabled={mBaseDisabled} onClick={() => void handleRejectTransfer(req.id)}>
+                          Reject
+                        </button>
+                      </div>
                     )}
                   </div>
                   )
