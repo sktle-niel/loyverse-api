@@ -131,7 +131,9 @@ export function useStockLevels() {
   const startAutoRefresh = useCallback(() => {
     clearAutoRefresh()
     autoRefreshRef.current = setInterval(() => {
-      if (!_paused) void fetchLevels(false, true)
+      // Skip if a background-poll interval is already fetching every 5s during a sync.
+      // This prevents double-polling while the server is doing a full sync.
+      if (!_paused && !serverPollRef.current) void fetchLevels(false, true)
     }, AUTO_REFRESH_MS)
   }, [fetchLevels])
 
@@ -163,6 +165,8 @@ export function useStockLevels() {
     _paused = false
     setPersistedPaused(false)
     setIsPaused(false)
+    setIsServerLoading(true) // show progress bar immediately, before API response
+    setSyncProgress(null)    // clear any stale progress from a previous sync
     clearServerPoll()
     clearAutoRefresh()
     void fetchLevels(true)
@@ -170,7 +174,9 @@ export function useStockLevels() {
   }, [fetchLevels, startAutoRefresh])
 
   useEffect(() => {
-    // Always fetch on mount to populate data (even when paused, shows cached data without polling)
+    // Fetch current state on mount — if a sync is already running (another tab/device started
+    // it) this picks up the progress without restarting it. A full sync only triggers when
+    // the cache TTL expires or the user clicks Reset.
     void fetchLevels(false)
     if (!_paused) startAutoRefresh()
     return () => {
