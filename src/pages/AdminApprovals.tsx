@@ -425,8 +425,15 @@ export function AdminApprovals() {
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors duration-150 ${activeTab === 'transfers' ? 'border-primary text-primary' : 'border-transparent text-base-content/45 hover:text-base-content'}`}
             onClick={() => setActiveTab('transfers')}
           >
-            Transfers
-            {transferRequests.length > 0 && <span className="ml-2 text-xs bg-warning/15 text-warning rounded-full px-1.5 py-0.5">{transferRequests.length}</span>}
+            <span className="inline-flex items-center gap-2">
+              Transfers
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-base-content/8 text-base-content/35 rounded px-1.5 py-0.5 leading-none">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+                disabled
+              </span>
+            </span>
           </button>
         </div>
 
