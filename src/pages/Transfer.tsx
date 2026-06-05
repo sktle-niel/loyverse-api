@@ -300,7 +300,7 @@ export function Transfer() {
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
                 Sync paused — click Resume to continue
               </p>
-            ) : isServerLoading ? (
+            ) : isServerLoading && syncProgress != null ? (
               <div className="mt-2 space-y-1.5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-warning/80 flex items-center gap-1.5">
