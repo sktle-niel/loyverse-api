@@ -154,7 +154,12 @@ export function AdminApprovals() {
   const handleSyncRequest = useCallback(async (id: string) => {
     setSyncingIds((prev) => new Set(prev).add(id))
     try {
-      await refreshLiveStocks()
+      // Primary: refresh the transfer list — fromStockCurrent comes from the
+      // in-memory cache (updated every 15s by delta sync), always reliable.
+      await fetchTransfers('pending')
+      // Best-effort: also try a direct Loyverse fetch to update liveStockMap.
+      // Silently ignored if the endpoint is unavailable.
+      void refreshLiveStocks().catch(() => {})
       setSyncedIds((prev) => new Set(prev).add(id))
       // Clear any existing 30s timer for this id and start a fresh one
       const existing = syncTimeoutsRef.current.get(id)
@@ -165,11 +170,11 @@ export function AdminApprovals() {
       }, 30_000)
       syncTimeoutsRef.current.set(id, t)
     } catch {
-      showToast({ message: 'Stock check failed. Please try again.', durationMs: 4000 })
+      showToast({ message: 'Failed to fetch transfer data. Please try again.', durationMs: 4000 })
     } finally {
       setSyncingIds((prev) => { const s = new Set(prev); s.delete(id); return s })
     }
-  }, [refreshLiveStocks, showToast])
+  }, [fetchTransfers, refreshLiveStocks, showToast])
 
   const storeNameById = useMemo(
     () => new Map(stores.map((s) => [s.id, s.name])),
