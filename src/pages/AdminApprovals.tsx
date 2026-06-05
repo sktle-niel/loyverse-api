@@ -128,6 +128,7 @@ export function AdminApprovals() {
   const activeTab = (searchParams.get('tab') === 'transfers' ? 'transfers' : 'stock') as 'stock' | 'transfers'
   const setActiveTab = (tab: 'stock' | 'transfers') => setSearchParams({ tab }, { replace: true })
   const [liveStockMap, setLiveStockMap] = useState<Map<string, number>>(new Map())
+  const [isLiveChecking, setIsLiveChecking] = useState(false)
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
@@ -137,10 +138,12 @@ export function AdminApprovals() {
   const backgroundTransferIds = useMemo(() => readTransferStoredIds(), [bgTransferTick])
 
   const refreshLiveStocks = useCallback(async () => {
+    setIsLiveChecking(true)
     try {
       const stocks = await fetchPendingStocks()
       setLiveStockMap(new Map(stocks.map((s) => [`${s.variantId}:${s.storeId}`, s.stock])))
-    } catch { /* silent — backend safeguard still applies on approve */ }
+    } catch { /* silent — Approve button safeguard on backend still applies */ }
+    finally { setIsLiveChecking(false) }
   }, [fetchPendingStocks])
 
   const storeNameById = useMemo(
@@ -203,7 +206,7 @@ export function AdminApprovals() {
     const interval = setInterval(() => {
       void refreshLiveStocks()
       void fetchTransfers('pending')
-    }, 30_000)
+    }, 15_000)
     return () => clearInterval(interval)
   }, [activeTab, refreshLiveStocks, fetchTransfers])
 
@@ -358,7 +361,10 @@ export function AdminApprovals() {
           <button
             type="button"
             className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
-            onClick={() => activeTab === 'stock' ? refetch('pending') : void fetchTransfers('pending')}
+            onClick={() => {
+              if (activeTab === 'stock') { refetch('pending') }
+              else { void fetchTransfers('pending'); void refreshLiveStocks() }
+            }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
@@ -543,7 +549,16 @@ export function AdminApprovals() {
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">From</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">To</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Qty</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">From stock</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">
+                      <span className="inline-flex items-center gap-1">
+                        From stock
+                        {isLiveChecking && (
+                          <svg className="animate-spin text-base-content/30" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                          </svg>
+                        )}
+                      </span>
+                    </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Requested by</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">When</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Actions</th>
