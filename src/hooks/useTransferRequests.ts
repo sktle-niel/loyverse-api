@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { apiFetchJson, apiPostJson, apiPatchJson } from '../api/client'
-import type { TransferRequest, TransferRequestsResponse } from '../api/types'
+import type { TransferRequest, TransferRequestsResponse, PendingTransferStock, PendingTransferStocksResponse } from '../api/types'
 
 export function useTransferRequests() {
   const [requests, setRequests] = useState<TransferRequest[]>([])
@@ -55,6 +55,11 @@ export function useTransferRequests() {
     )
   }, [])
 
+  const fetchPendingStocks = useCallback(async (): Promise<PendingTransferStock[]> => {
+    const res = await apiFetchJson<PendingTransferStocksResponse>('/transfer-requests/pending-stocks')
+    return res.stocks
+  }, [])
+
   return {
     requests,
     isLoading,
@@ -65,5 +70,6 @@ export function useTransferRequests() {
     approveTransfer,
     rejectTransfer,
     cancelTransfer,
+    fetchPendingStocks,
   }
 }

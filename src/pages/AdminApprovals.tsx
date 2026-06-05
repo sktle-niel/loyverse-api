@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useTransferRequests } from '../hooks/useTransferRequests'
@@ -121,11 +121,13 @@ export function AdminApprovals() {
     fetchRequests: fetchTransfers,
     approveTransfer,
     rejectTransfer,
+    fetchPendingStocks,
   } = useTransferRequests()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = (searchParams.get('tab') === 'transfers' ? 'transfers' : 'stock') as 'stock' | 'transfers'
   const setActiveTab = (tab: 'stock' | 'transfers') => setSearchParams({ tab }, { replace: true })
+  const [liveStockMap, setLiveStockMap] = useState<Map<string, number>>(new Map())
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
@@ -133,6 +135,13 @@ export function AdminApprovals() {
   const [bgTransferTick, setBgTransferTick] = useState(0)
   const backgroundIds = useMemo(() => readStoredIds(), [bgTick])
   const backgroundTransferIds = useMemo(() => readTransferStoredIds(), [bgTransferTick])
+
+  const refreshLiveStocks = useCallback(async () => {
+    try {
+      const stocks = await fetchPendingStocks()
+      setLiveStockMap(new Map(stocks.map((s) => [`${s.variantId}:${s.storeId}`, s.stock])))
+    } catch { /* silent — backend safeguard still applies on approve */ }
+  }, [fetchPendingStocks])
 
   const storeNameById = useMemo(
     () => new Map(stores.map((s) => [s.id, s.name])),
@@ -185,13 +194,18 @@ export function AdminApprovals() {
     return () => clearInterval(interval)
   }, [backgroundTransferIds, fetchTransfers])
 
-  // Auto-refresh transfers every 30s when on the transfers tab so live stock
-  // numbers stay current (delta sync updates cache every ~15s on the backend).
+  // When on the transfers tab: immediately fetch live stock directly from Loyverse
+  // for only the items in pending approvals, then repeat every 30s. This detects
+  // stock changes (sales, manual Loyverse edits) so admin always sees current numbers.
   useEffect(() => {
     if (activeTab !== 'transfers') return
-    const interval = setInterval(() => { void fetchTransfers('pending') }, 30_000)
+    void refreshLiveStocks()
+    const interval = setInterval(() => {
+      void refreshLiveStocks()
+      void fetchTransfers('pending')
+    }, 30_000)
     return () => clearInterval(interval)
-  }, [activeTab, fetchTransfers])
+  }, [activeTab, refreshLiveStocks, fetchTransfers])
 
   const handleApproveTransfer = async (id: string) => {
     writeTransferStoredId(id)
@@ -548,8 +562,10 @@ export function AdminApprovals() {
                       const isRejecting = rejectingIds.has(req.id)
                       const isDone = doneIds.has(req.id)
                       const isBackground = backgroundTransferIds.has(req.id)
-                      const isDisabled = isApproving || isRejecting || isDone || isBackground
-                      const stockInsufficient = req.fromStockCurrent != null && req.fromStockCurrent < req.quantity
+                      const liveFromStock = liveStockMap.get(`${req.variantId}:${req.fromStoreId}`)
+                      const effectiveFromStock = liveFromStock !== undefined ? liveFromStock : req.fromStockCurrent
+                      const isInsufficient = effectiveFromStock != null && effectiveFromStock < req.quantity
+                      const isDisabled = isApproving || isRejecting || isDone || isBackground || isInsufficient
                       return (
                         <tr key={req.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                           <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
@@ -557,18 +573,18 @@ export function AdminApprovals() {
                           <td className="py-3.5 px-4 text-base-content/60 text-xs">{req.toStoreName}</td>
                           <td className="py-3.5 px-4 text-base-content/80 tabular font-medium">{req.quantity}</td>
                           <td className="py-3.5 px-4 tabular text-xs">
-                            {req.fromStockCurrent == null ? (
+                            {effectiveFromStock == null ? (
                               <span className="text-base-content/30">—</span>
-                            ) : stockInsufficient ? (
+                            ) : isInsufficient ? (
                               <span className="inline-flex items-center gap-1 text-warning font-semibold">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                                   <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                                 </svg>
-                                {req.fromStockCurrent}
+                                {effectiveFromStock}
                               </span>
                             ) : (
-                              <span className="text-base-content/70">{req.fromStockCurrent}</span>
+                              <span className="text-base-content/70">{effectiveFromStock}</span>
                             )}
                           </td>
                           <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
@@ -621,24 +637,27 @@ export function AdminApprovals() {
               ) : (
                 transferRequests.map((req, index) => {
                   const isBg = backgroundTransferIds.has(req.id)
-                  const isDisabled = approvingIds.has(req.id) || rejectingIds.has(req.id) || doneIds.has(req.id) || isBg
+                  const mobileLiveFromStock = liveStockMap.get(`${req.variantId}:${req.fromStoreId}`)
+                  const mobileEffectiveFromStock = mobileLiveFromStock !== undefined ? mobileLiveFromStock : req.fromStockCurrent
+                  const mobileInsufficient = mobileEffectiveFromStock != null && mobileEffectiveFromStock < req.quantity
+                  const isDisabled = approvingIds.has(req.id) || rejectingIds.has(req.id) || doneIds.has(req.id) || isBg || mobileInsufficient
                   return (
                   <div key={req.id} className="p-4 space-y-2.5 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                     <p className="font-medium text-sm text-base-content">{req.itemName}</p>
                     <div className="text-xs text-base-content/55 space-y-0.5">
                       <div className="flex items-center gap-1.5">
                         <span>{req.fromStoreName}</span>
-                        {req.fromStockCurrent != null && (
-                          req.fromStockCurrent < req.quantity ? (
+                        {mobileEffectiveFromStock != null && (
+                          mobileInsufficient ? (
                             <span className="inline-flex items-center gap-0.5 text-warning font-semibold">
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                                 <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                               </svg>
-                              {req.fromStockCurrent}
+                              {mobileEffectiveFromStock}
                             </span>
                           ) : (
-                            <span className="text-base-content/40">({req.fromStockCurrent})</span>
+                            <span className="text-base-content/40">({mobileEffectiveFromStock})</span>
                           )
                         )}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
