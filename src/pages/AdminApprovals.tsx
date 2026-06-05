@@ -154,12 +154,13 @@ export function AdminApprovals() {
   const handleSyncRequest = useCallback(async (id: string) => {
     setSyncingIds((prev) => new Set(prev).add(id))
     try {
-      // Primary: refresh the transfer list — fromStockCurrent comes from the
-      // in-memory cache (updated every 15s by delta sync), always reliable.
-      await fetchTransfers('pending')
-      // Best-effort: also try a direct Loyverse fetch to update liveStockMap.
-      // Silently ignored if the endpoint is unavailable.
-      void refreshLiveStocks().catch(() => {})
+      // Primary: direct Loyverse fetch — accurate, unaffected by cache lag.
+      // Falls back to cache-based transfer list refresh if endpoint unavailable.
+      try {
+        await refreshLiveStocks()
+      } catch {
+        await fetchTransfers('pending')
+      }
       setSyncedIds((prev) => new Set(prev).add(id))
       // Clear any existing 30s timer for this id and start a fresh one
       const existing = syncTimeoutsRef.current.get(id)
