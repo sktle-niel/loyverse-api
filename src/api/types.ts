@@ -154,6 +154,29 @@ export interface ItemPricesResponse {
   progress?: PricingProgress | null
 }
 
+export interface PriceHistoryEntry {
+  id: string
+  itemId: string
+  itemName: string
+  storeId: string
+  storeName: string
+  oldPrice: number | null
+  newPrice: number
+  changedBy: string
+  createdAt: string
+}
+
+export interface UpdatePriceResponse {
+  ok: boolean
+  entry: PriceHistoryEntry
+  message: string
+}
+
+export interface PriceHistoryResponse {
+  history: PriceHistoryEntry[]
+  total: number
+}
+
 export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface TransferRequest {
