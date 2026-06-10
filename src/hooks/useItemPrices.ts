@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiFetchJson } from '../api/client'
-import type { ItemPrice, ItemPricesResponse, PricingProgress, StoreInfo } from '../api/types'
+import { apiFetchJson, apiPatchJson } from '../api/client'
+import type {
+  ItemPrice,
+  ItemPricesResponse,
+  PriceHistoryEntry,
+  PriceHistoryResponse,
+  PricingProgress,
+  StoreInfo,
+  UpdatePriceResponse,
+} from '../api/types'
 
 const CACHE_KEY = 'twz.priceList.v1'
 const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour — data persists across visits, then must reload
@@ -32,6 +40,23 @@ function writeCache(c: CachedPrices): void {
     localStorage.setItem(CACHE_KEY, JSON.stringify(c))
   } catch {
     /* storage full or unavailable — non-fatal */
+  }
+}
+
+/** Patch a single store price inside the persisted cache so an edit survives a revisit. */
+function patchCachePrice(itemId: string, storeId: string, price: number): void {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return
+    const c = JSON.parse(raw) as CachedPrices
+    c.items = c.items.map((it) =>
+      it.id === itemId
+        ? { ...it, prices: it.prices.map((p) => (p.storeId === storeId ? { ...p, price } : p)) }
+        : it,
+    )
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c))
+  } catch {
+    /* non-fatal */
   }
 }
 
@@ -121,5 +146,35 @@ export function useItemPrices() {
     void load(true)
   }, [load])
 
-  return { items, stores, source, cachedAt, savedAt, isLoading, progress, error, refresh }
+  // Edit one store's price → writes to Loyverse + records history server-side.
+  const updateStorePrice = useCallback(async (
+    itemId: string,
+    variantId: string,
+    storeId: string,
+    storeName: string,
+    price: number,
+  ): Promise<UpdatePriceResponse> => {
+    const res = await apiPatchJson<UpdatePriceResponse>(
+      `/item-prices/${itemId}/price`,
+      { storeId, storeName, variantId, price },
+      { timeoutMs: 30_000 },
+    )
+    // Reflect immediately in the UI and in the 1-hour cache.
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === itemId
+          ? { ...it, prices: it.prices.map((p) => (p.storeId === storeId ? { ...p, price } : p)) }
+          : it,
+      ),
+    )
+    patchCachePrice(itemId, storeId, price)
+    return res
+  }, [])
+
+  const fetchHistory = useCallback(async (itemId: string): Promise<PriceHistoryEntry[]> => {
+    const res = await apiFetchJson<PriceHistoryResponse>(`/item-prices/${itemId}/history`)
+    return res.history
+  }, [])
+
+  return { items, stores, source, cachedAt, savedAt, isLoading, progress, error, refresh, updateStorePrice, fetchHistory }
 }
