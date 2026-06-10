@@ -11,7 +11,9 @@ export function useStores() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await apiFetchJson<{ stores: StoreInfo[]; source: string }>('/stores')
+      const response = await apiFetchJson<{ stores: StoreInfo[]; source: string }>('/stores', {
+        timeoutMs: 60_000,
+      })
       setStores(response.stores)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch stores')

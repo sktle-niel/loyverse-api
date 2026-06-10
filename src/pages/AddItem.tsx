@@ -31,7 +31,7 @@ type StoreRow = { available: boolean; price: string }
 export function AddItem() {
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { stores, isLoading: storesLoading } = useStores()
+  const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
   const { categories, categoriesLoading, createItem } = useCreateItem()
 
   const [name, setName] = useState('')
@@ -227,7 +227,23 @@ export function AddItem() {
             </label>
 
             {storesLoading ? (
-              <p className="text-xs text-base-content/40">Loading stores…</p>
+              <p className="text-xs text-base-content/40 flex items-center gap-1.5">
+                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                </svg>
+                Loading stores…
+              </p>
+            ) : storesError || stores.length === 0 ? (
+              <div className="rounded-lg border border-base-content/10 bg-base-content/3 px-4 py-4 text-center">
+                <p className="text-xs text-base-content/55">{storesError ? `Couldn't load stores. ${storesError}` : 'No stores found.'}</p>
+                <button
+                  type="button"
+                  onClick={() => void refetchStores()}
+                  className="btn btn-xs btn-ghost mt-2 text-primary border border-primary/25 hover:bg-primary/10"
+                >
+                  Retry
+                </button>
+              </div>
             ) : (
               <div className="rounded-lg border border-base-content/8 divide-y divide-base-content/6 overflow-hidden">
                 <div className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2 bg-base-content/3 text-[11px] font-medium text-base-content/45 uppercase tracking-wide">
