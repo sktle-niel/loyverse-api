@@ -8,6 +8,7 @@ export const ROUTES = {
   PENDING: '/pending',
   TRANSFER: '/transfer',
   TRANSFER_HISTORY: '/transfer-history',
+  PRICE_LIST: '/price-list',
 } as const
 
 export const USER_MANUAL_URL =
