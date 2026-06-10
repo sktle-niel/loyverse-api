@@ -122,6 +122,30 @@ export interface StockLevelsResponse {
   syncProgress?: SyncProgress | null
 }
 
+export interface ItemStorePrice {
+  storeId: string
+  storeName: string
+  price: number | null
+}
+
+export interface ItemPrice {
+  id: string
+  variantId: string
+  name: string
+  sku: string
+  cost: number | null
+  prices: ItemStorePrice[]
+}
+
+export interface ItemPricesResponse {
+  items: ItemPrice[]
+  stores: StoreInfo[]
+  total: number
+  filtered: number
+  source: 'loyverse' | 'mock'
+  cachedAt: string
+}
+
 export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface TransferRequest {

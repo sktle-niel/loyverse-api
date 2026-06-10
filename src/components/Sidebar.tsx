@@ -78,6 +78,13 @@ const QueueIcon = () => (
   </svg>
 )
 
+const PriceTagIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+    <line x1="7" y1="7" x2="7.01" y2="7" />
+  </svg>
+)
+
 const HistoryIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="12 8 12 12 14 14" />
@@ -125,6 +132,8 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
         { type: 'link', path: ROUTES.PENDING,          label: 'Pending',          icon: PendingIcon },
         { type: 'link', path: ROUTES.QUEUE,            label: 'My Requests',      icon: QueueIcon },
         { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
+        DIVIDER,
+        { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
       ]
 
   const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'

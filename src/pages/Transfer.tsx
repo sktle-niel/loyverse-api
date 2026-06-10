@@ -331,7 +331,7 @@ export function Transfer() {
             <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Operator</p>
             <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Stock levels</h1>
             <p className="text-sm text-base-content/45 mt-1">
-              {source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'} · items with stock &gt; 2 in any branch
+              {source === 'loyverse' ? 'Live from Loyverse' : 'Mock data'} · all items, per-branch stock
             </p>
             {isLoading ? (
               <p className="text-xs text-primary/70 mt-1.5">Loading stock levels…</p>
@@ -487,7 +487,7 @@ export function Transfer() {
             ) : filtered.length === 0 ? (
               <div className="py-16 text-center">
                 <p className="text-sm text-base-content/40">
-                  {query ? 'No products match your search.' : 'No items with transferable stock (> 2 in any branch).'}
+                  {query ? 'No products match your search.' : 'No products loaded.'}
                 </p>
               </div>
             ) : (
@@ -551,7 +551,7 @@ export function Transfer() {
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={colCount} className="py-16 text-center text-sm text-base-content/40">
-                      {query ? 'No products match your search.' : 'No items with transferable stock (> 2 in any branch).'}
+                      {query ? 'No products match your search.' : 'No products loaded.'}
                     </td>
                   </tr>
                 ) : (
