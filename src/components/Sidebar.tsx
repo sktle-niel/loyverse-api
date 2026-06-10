@@ -78,6 +78,13 @@ const QueueIcon = () => (
   </svg>
 )
 
+const AddItemIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+  </svg>
+)
+
 const PriceTagIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
@@ -126,14 +133,16 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
         { type: 'link', path: ROUTES.OPERATORS,        label: 'Operators',        icon: OperatorsIcon },
       ]
     : [
+        // Main catalog & inventory actions
         { type: 'link', path: ROUTES.INVENTORY,        label: 'Inventory',        icon: InventoryIcon },
         { type: 'link', path: ROUTES.TRANSFER,         label: 'Stock Levels',     icon: TransferIcon },
+        { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
+        { type: 'link', path: ROUTES.ADD_ITEM,         label: 'Add Item',         icon: AddItemIcon },
         DIVIDER,
+        // Requests & history
         { type: 'link', path: ROUTES.PENDING,          label: 'Pending',          icon: PendingIcon },
         { type: 'link', path: ROUTES.QUEUE,            label: 'My Requests',      icon: QueueIcon },
         { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
-        DIVIDER,
-        { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
       ]
 
   const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'

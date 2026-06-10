@@ -35,7 +35,7 @@ export function SuccessToast({
 
   return (
     <div
-      className={`fixed z-50 top-4 right-4 px-3 sm:px-0 w-full sm:w-auto pointer-events-none transition-all duration-300 ${
+      className={`fixed z-[100] top-4 right-4 px-3 sm:px-0 w-full sm:w-auto pointer-events-none transition-all duration-300 ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
       }`}
     >

@@ -9,6 +9,7 @@ export const ROUTES = {
   TRANSFER: '/transfer',
   TRANSFER_HISTORY: '/transfer-history',
   PRICE_LIST: '/price-list',
+  ADD_ITEM: '/add-item',
 } as const
 
 export const USER_MANUAL_URL =

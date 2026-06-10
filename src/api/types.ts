@@ -154,6 +154,43 @@ export interface ItemPricesResponse {
   progress?: PricingProgress | null
 }
 
+export interface Category {
+  id: string
+  name: string
+}
+
+export interface CategoriesResponse {
+  categories: Category[]
+}
+
+export interface CreateItemStoreInput {
+  storeId: string
+  available: boolean
+  price: number | null
+}
+
+export interface CreateItemBody {
+  name: string
+  categoryId?: string | null
+  description?: string
+  soldByWeight?: boolean
+  trackStock?: boolean
+  cost?: number | null
+  sku?: string
+  barcode?: string
+  defaultPrice?: number | null
+  color?: string
+  form?: string
+  stores: CreateItemStoreInput[]
+}
+
+export interface CreateItemResponse {
+  ok: boolean
+  id?: string
+  itemName: string
+  message: string
+}
+
 export interface PriceHistoryEntry {
   id: string
   itemId: string
