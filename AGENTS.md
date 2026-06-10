@@ -1,74 +1,94 @@
-# Loyverse API — Project Context for AI Agents
+# Loyverse API — Frontend Context for AI Agents
 
-**Business:** Two Wheels Zone — motor parts & lubricants. Internal inventory UI + audit trail via Loyverse (backend proxy).
+**Business:** Two Wheels Zone — motor parts & lubricants. Internal back-office UI (inventory, approvals, branch transfers, audit) backed by Loyverse POS via a backend proxy.
 
-**Stack:** React + TypeScript + Vite + Tailwind 4 + DaisyUI. Navigation in `MainLayout` state (no React Router).
+**Stack:** React 19 · TypeScript · Vite 8 · Tailwind 4 · DaisyUI · **React Router 7** · PWA (`vite-plugin-pwa`).
+
+> ⚠️ **Docs reconciled with code on 2026-06-10.** Active branch: `design-phase`.
 
 ---
 
 ## Auth (required)
 
-- `AuthProvider` + `AppGate` — shows **Login** until authenticated
-- Token in `localStorage` (`auth.token`); sent as `Authorization: Bearer`
-- **admin:** Dashboard, Inventory, approval queue, Settings
-- **operator:** Inventory only (submit stock); no audit/approve
+- `AuthProvider` (`context/AuthContext`) + `AppGate` (`components/AppGate`) — show **Login** until authenticated.
+- `localStorage`: access token (`auth.token`), refresh token, and user (`utils/authStorage.ts`).
+- All API calls send `Authorization: Bearer <token>`.
+- On `401`, the client tries `POST /auth/refresh` once (deduped); if that fails it clears the session and
+  fires an `auth:session-expired` event.
+- Login: `POST /api/auth/login` with `{ login | username, password }`.
 
-Login: `POST /api/auth/login` with `{ username, password }`
+**Roles**
+- **admin:** Dashboard (audit), Inventory, Approvals, History, Operators.
+- **operator:** Inventory, Queue, Pending, Transfer (+ Transfer History, shared).
+
+---
 
 ## Architecture
 
 ```
-[React frontend]  VITE_API_BASE_URL →  [loyverse-api-backend]
-                                              ↓
-                                         Loyverse API
-                                         MySQL (pending requests)
+[React frontend]  VITE_API_BASE_URL →  [loyverse-api-backend]  →  Loyverse API + MySQL
 ```
 
-Frontend never holds Loyverse token.
+Frontend **never** holds the Loyverse token. All Loyverse access is server-side.
 
 ---
 
-## Navigation
+## Routing (`layouts/MainLayout.tsx`, paths in `constants/app.ts`)
 
-| Sidebar id | Page | File |
-|------------|------|------|
-| `dashboard` | Audit Trail | `Dashboard.tsx` |
-| `reports` | Inventory | `Inventory.tsx` |
-| `settings` | Placeholder | `MainLayout.tsx` |
+Uses React Router (`Routes`/`Route`/`Navigate`). Role-gated redirects live in `MainLayout`.
 
----
-
-## Inventory flow (wired)
-
-1. `useProducts()` → `GET /api/products` (products + `stores[]` from Loyverse)
-2. Staff edits stock → `PATCH /api/products/:itemId/stock` with `{ updates: [{ storeId, stock }], requestedBy }` → **202 pending** (not Loyverse yet)
-3. `useStockRequests()` → `GET /api/stock-requests?status=pending`
-4. Approve → `POST /api/stock-requests/:id/approve` with `{ reviewedBy }` → Loyverse updated
-5. Reject → `POST /api/stock-requests/:id/reject`
-
-Approval queue UI is a tab inside `Inventory.tsx` (admin website can use same API later).
+| Path | Page | Access |
+|------|------|--------|
+| `/dashboard` | `Dashboard.tsx` (audit trail) | admin |
+| `/inventory` | `Inventory.tsx` (stock editor) | both |
+| `/approvals` | `AdminApprovals.tsx` (stock-request queue; Transfers tab **disabled**) | admin |
+| `/history` | `History.tsx` | admin |
+| `/operators` | `AdminOperators.tsx` | admin |
+| `/queue` | `OperatorQueue.tsx` | operator |
+| `/pending` | `PendingRequests.tsx` | operator |
+| `/transfer` | `Transfer.tsx` (branch-to-branch) | operator |
+| `/transfer-history` | `TransferHistory.tsx` | both |
+| `/` and `*` | redirect → `/dashboard` (admin) or `/inventory` (operator) | — |
 
 ---
 
-## API client
+## Two stock flows (must match backend)
 
-- `src/api/client.ts` — **dev:** always `/api` (Vite proxy, no CORS). **production:** `VITE_API_BASE_URL`
-- `src/api/types.ts` — `Product`, `StoreInfo`, `StockChangeRequest`, etc.
+**1. Stock change — REQUIRES admin approval**
+1. `useProducts()` → `GET /api/products` (products + `stores[]`).
+2. Operator edits stock → `PATCH /api/products/:itemId/stock` `{ storeId, stock, requestedBy }` → **202 pending** (Loyverse not touched).
+3. `useStockRequests()` / `useMyStockRequests()` → `GET /api/stock-requests[?status=]` / `/stock-requests/mine`.
+4. Admin approve → `POST /api/stock-requests/:id/approve` → Loyverse updated + audit.
+5. Reject → `POST /api/stock-requests/:id/reject`; Cancel → `POST /api/stock-requests/:id/cancel`.
+
+**2. Transfer — NO approval (direct mode)**
+- `Transfer.tsx` → `useTransferRequests()` → `POST /api/transfer-requests` → backend **executes in Loyverse immediately**. UI toast: *"Transfer done. Stock updated in Loyverse."*
+- Because of this, the **Transfers tab in `AdminApprovals` is labeled "disabled"** — transfers never sit in a pending queue in production.
+- Transfer stock data comes from `useStockLevels()` → `GET /api/stocks` (cached sync engine with progress/ETA; `/stocks/stop` + `/stocks/resume` control the background sync).
 
 ---
 
-## Key files
+## API client (`src/api/client.ts`)
 
-```
-src/
-  pages/Inventory.tsx      # stock editor + approval tab
-  pages/Dashboard.tsx      # audit (useAudit)
-  hooks/useProducts.ts
-  hooks/useStockRequests.ts
-  hooks/useAudit.ts
-  api/client.ts
-  api/types.ts
-```
+- `getApiBaseUrl()` — **dev:** `/api` (Vite proxy, no CORS). **prod:** `VITE_API_BASE_URL` (auto-appends `/api`).
+- `apiFetchJson` (GET), `apiPatchJson` (PATCH), `apiPostJson` (POST) — all add the Bearer header, enforce a 15s timeout, refresh-on-401, and surface backend `{ message | error }`.
+- Types in `src/api/types.ts` — `Product`, `StoreInfo`, `StockChangeRequest`, `TransferRequest`, etc.
+
+---
+
+## Hooks (`src/hooks/`)
+
+`useProducts` · `useProductSearch` · `useStores` · `useStockRequests` · `useMyStockRequests` ·
+`useStockLevels` · `useTransferRequests` · `useAudit` · `useAuditFilters` · `useOperators` ·
+`useLoginForm` · `usePushNotifications` · `useTheme`.
+
+---
+
+## Push notifications (PWA)
+
+`usePushNotifications` + `NotificationBell` subscribe via the backend `/api/push/*` endpoints
+(VAPID). Admins get a browser notification on new stock/transfer requests. Requires the service
+worker (PWA build) and backend VAPID keys.
 
 ---
 
@@ -77,17 +97,18 @@ src/
 - Page shell: `min-h-screen bg-base-200 p-3 sm:p-4 md:p-8`
 - Cards: `card bg-base-100 shadow border border-base-200`
 - Tables: `table text-sm`, thead `bg-base-200`
+- Theme toggle via `useTheme` + `ThemeToggleButton`; toasts via `ToastContext` / `ToastLayer`.
 
 ---
 
 ## Do NOT
 
-- Put Loyverse secrets in `VITE_*` env vars
-- Add React Router unless asked
-- Call Loyverse directly from the frontend
+- Put Loyverse secrets in `VITE_*` env vars.
+- Call Loyverse directly from the frontend.
+- Re-enable a transfer-approval UI without coordinating with the backend (`transferRequestService` is in direct mode).
 
 ---
 
 ## Backend repo
 
-`loyverse-api-backend` — see its `AGENTS.md` for routes and MySQL setup.
+`loyverse-api-backend` — see its `AGENTS.md` for the full route table, the stock-levels sync engine, and MySQL setup.

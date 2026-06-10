@@ -200,10 +200,9 @@ export function AdminApprovals() {
     return () => clearInterval(interval)
   }, [backgroundIds, refetch])
 
-  useEffect(() => {
-    void fetchTransfers('pending')
-  }, [fetchTransfers])
-
+  // Only fetch transfers when the (currently disabled) Transfers tab is actually open.
+  // Transfers run in direct mode, so they never sit in a pending queue — eagerly fetching
+  // on every visit just wastes an API call while the admin is on the Stock tab.
   useEffect(() => {
     if (activeTab === 'transfers') void fetchTransfers('pending')
   }, [activeTab, fetchTransfers])
