@@ -137,6 +137,12 @@ export interface ItemPrice {
   prices: ItemStorePrice[]
 }
 
+export interface PricingProgress {
+  percent: number          // 0–99 while loading
+  itemsFetched: number
+  totalExpected: number
+}
+
 export interface ItemPricesResponse {
   items: ItemPrice[]
   stores: StoreInfo[]
@@ -144,6 +150,8 @@ export interface ItemPricesResponse {
   filtered: number
   source: 'loyverse' | 'mock'
   cachedAt: string
+  isLoading?: boolean
+  progress?: PricingProgress | null
 }
 
 export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'

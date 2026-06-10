@@ -561,8 +561,8 @@ export function Transfer() {
                       className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
                       style={{ animationDelay: `${index * 20}ms` }}
                     >
-                      <td className="py-3.5 px-4 font-medium text-base-content max-w-0">
-                        <p className="truncate">{p.name}</p>
+                      <td className="py-3.5 px-4 font-medium text-base-content">
+                        <p className="break-words">{p.name}</p>
                       </td>
                       <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{p.sku}</td>
                       {p.stocks.map((s) => (
