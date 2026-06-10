@@ -351,8 +351,8 @@ export function Inventory() {
                           className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
                           style={{ animationDelay: `${index * 20}ms` }}
                         >
-                          <td className="py-3.5 px-4 max-w-0">
-                            <p className="font-medium text-base-content truncate">{p.name}</p>
+                          <td className="py-3.5 px-4">
+                            <p className="font-medium text-base-content break-words">{p.name}</p>
                           </td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{p.sku}</td>
                           <td className="py-3.5 px-4">
