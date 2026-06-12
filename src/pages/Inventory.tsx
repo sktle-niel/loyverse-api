@@ -5,7 +5,7 @@ import { useProducts } from '../hooks/useProducts'
 import { useProductSearch } from '../hooks/useProductSearch'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
-import { buildItemsCsv, downloadCsv } from '../utils/exportItems'
+import { exportItemsToExcel } from '../utils/exportItems'
 
 const ITEMS_PER_PAGE = 10
 
@@ -153,8 +153,8 @@ export function Inventory() {
         return
       }
       const stamp = new Date().toISOString().slice(0, 10)
-      downloadCsv(`inventory_in_stock_${stamp}.csv`, buildItemsCsv(data))
-      showToast({ message: `Exported ${data.items.length} in-stock items to CSV.`, durationMs: 5000 })
+      await exportItemsToExcel(data, `inventory_in_stock_${stamp}.xlsx`)
+      showToast({ message: `Exported ${data.items.length} in-stock items to Excel.`, durationMs: 5000 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Export failed'
       showToast({ message: `Export failed. ${msg}`, durationMs: 7000, variant: 'error' })
