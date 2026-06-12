@@ -3,10 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { useCatalogHistory } from '../hooks/useCatalogHistory'
 import { useAuth } from '../context/AuthContext'
 
-type Tab = 'prices' | 'items'
+type Tab = 'prices' | 'items' | 'deleted'
 
 const ITEMS_PER_PAGE = 20
-const VALID_TABS = new Set<Tab>(['prices', 'items'])
+const VALID_TABS = new Set<Tab>(['prices', 'items', 'deleted'])
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ function SkeletonRow({ cols }: { cols: number }) {
 
 export function CatalogHistory() {
   const { isAdmin } = useAuth()
-  const { priceHistory, createdItems, isLoading, error } = useCatalogHistory()
+  const { priceHistory, createdItems, deletedItems, isLoading, error } = useCatalogHistory()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const rawTab = searchParams.get('tab') as Tab | null
@@ -128,9 +128,10 @@ export function CatalogHistory() {
 
   // Period options come from whichever tab's dataset is active.
   const activeDates = useMemo<string[]>(() => {
-    const src: Array<{ createdAt: string }> = activeTab === 'prices' ? priceHistory : createdItems
+    const src: Array<{ createdAt: string }> =
+      activeTab === 'prices' ? priceHistory : activeTab === 'items' ? createdItems : deletedItems
     return src.map((r) => r.createdAt)
-  }, [activeTab, priceHistory, createdItems])
+  }, [activeTab, priceHistory, createdItems, deletedItems])
 
   const availableYears = useMemo(() => {
     const years = new Set(activeDates.map((d) => localDate(d).slice(0, 4)))
@@ -181,18 +182,27 @@ export function CatalogHistory() {
     () => createdItems.filter((r) => localDate(r.createdAt) === selectedDate),
     [createdItems, selectedDate],
   )
+  const visibleDeleted = useMemo(
+    () => deletedItems.filter((r) => localDate(r.createdAt) === selectedDate),
+    [deletedItems, selectedDate],
+  )
 
-  const records = activeTab === 'prices' ? visiblePrices : visibleItems
+  const records = activeTab === 'prices' ? visiblePrices : activeTab === 'items' ? visibleItems : visibleDeleted
   const totalPages = Math.max(1, Math.ceil(records.length / ITEMS_PER_PAGE))
   const safePage = Math.min(currentPage, totalPages)
   const pageStart = (safePage - 1) * ITEMS_PER_PAGE
   const pagedPrices = visiblePrices.slice(pageStart, pageStart + ITEMS_PER_PAGE)
   const pagedItems = visibleItems.slice(pageStart, pageStart + ITEMS_PER_PAGE)
+  const pagedDeleted = visibleDeleted.slice(pageStart, pageStart + ITEMS_PER_PAGE)
 
   useEffect(() => { setCurrentPage(1) }, [activeTab, selectedDate])
 
   const emptyMessage = noData
-    ? activeTab === 'prices' ? 'No price changes recorded yet.' : 'No items added yet.'
+    ? activeTab === 'prices'
+      ? 'No price changes recorded yet.'
+      : activeTab === 'items'
+        ? 'No items added yet.'
+        : 'No items deleted yet.'
     : 'No records on the selected date.'
 
   return (
@@ -261,6 +271,7 @@ export function CatalogHistory() {
           {([
             { id: 'prices' as Tab, label: 'Price changes', count: visiblePrices.length },
             { id: 'items' as Tab, label: 'Added items', count: visibleItems.length },
+            { id: 'deleted' as Tab, label: 'Deleted items', count: visibleDeleted.length },
           ]).map(tab => (
             <button
               key={tab.id}
@@ -411,6 +422,60 @@ export function CatalogHistory() {
                           <td className="py-3.5 px-4 text-right text-base-content/60 tabular whitespace-nowrap">{formatPeso(it.cost)}</td>
                           <td className="py-3.5 px-4 text-right font-medium text-base-content tabular whitespace-nowrap">{formatPeso(it.defaultPrice)}</td>
                           <td className="py-3.5 px-4 text-base-content/60">{it.createdBy}</td>
+                          <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{formatTime(it.createdAt)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* ── DELETED ITEMS ─────────────────────────────────────────────── */}
+          {activeTab === 'deleted' && (
+            <>
+              {/* Mobile */}
+              <div className="sm:hidden divide-y divide-base-content/6">
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => <MobileSkeletonCard key={i} />)
+                ) : visibleDeleted.length === 0 ? (
+                  <div className="py-16 text-center"><p className="text-sm text-base-content/40">{emptyMessage}</p></div>
+                ) : (
+                  pagedDeleted.map((it, index) => (
+                    <div key={it.id} className="p-4 space-y-2 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
+                      <p className="font-medium text-sm text-base-content leading-snug">{it.itemName}</p>
+                      <div className="flex items-center justify-between gap-2 text-xs text-base-content/40">
+                        <span>SKU: {it.sku || '—'}</span>
+                        <span>{it.deletedBy} · <span className="tabular">{formatTime(it.createdAt)}</span></span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-base-content/8 bg-base-content/3">
+                      <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Item</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">SKU</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Deleted by</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={4} />)
+                    ) : visibleDeleted.length === 0 ? (
+                      <tr><td colSpan={4} className="py-16 text-center text-sm text-base-content/40">{emptyMessage}</td></tr>
+                    ) : (
+                      pagedDeleted.map((it, index) => (
+                        <tr key={it.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
+                          <td className="py-3.5 px-4 font-medium text-base-content break-words">{it.itemName}</td>
+                          <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{it.sku || '—'}</td>
+                          <td className="py-3.5 px-4 text-base-content/60">{it.deletedBy}</td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{formatTime(it.createdAt)}</td>
                         </tr>
                       ))
