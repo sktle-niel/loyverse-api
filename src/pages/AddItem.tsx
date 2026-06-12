@@ -32,7 +32,7 @@ export function AddItem() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
-  const { categories, categoriesLoading, createItem } = useCreateItem()
+  const { categories, categoriesLoading, nextSku, nextSkuLoading, createItem } = useCreateItem()
 
   const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -41,6 +41,7 @@ export function AddItem() {
   const [price, setPrice] = useState('')
   const [cost, setCost] = useState('')
   const [sku, setSku] = useState('')
+  const [skuEdited, setSkuEdited] = useState(false)
   const [barcode, setBarcode] = useState('')
   const [trackStock, setTrackStock] = useState(false)
   const [allStores, setAllStores] = useState(true)
@@ -48,6 +49,13 @@ export function AddItem() {
   const [color, setColor] = useState('GREY')
   const [shape, setShape] = useState('SQUARE')
   const [saving, setSaving] = useState(false)
+
+  // Pre-fill the SKU field with Loyverse's next auto-SKU as soon as it loads, so it shows
+  // immediately (like the Loyverse Back Office). Skipped once the operator types their own.
+  // Display-only: an untouched field is sent blank on submit so Loyverse assigns the real SKU.
+  useEffect(() => {
+    if (nextSku && !skuEdited && !sku) setSku(nextSku)
+  }, [nextSku, skuEdited, sku])
 
   // Seed store rows once stores load (available by default, like Loyverse).
   useEffect(() => {
@@ -108,7 +116,9 @@ export function AddItem() {
       soldByWeight,
       trackStock,
       cost: cost.trim() ? Number(cost) : 0,
-      sku: sku.trim() || undefined,
+      // Untouched field = the previewed SKU → send blank so Loyverse assigns the real one (no dups).
+      // Only send a SKU when the operator deliberately typed a custom one.
+      sku: skuEdited && sku.trim() ? sku.trim() : undefined,
       barcode: barcode.trim() || undefined,
       defaultPrice: price.trim() ? Number(price) : null,
       color,
@@ -123,7 +133,12 @@ export function AddItem() {
     setSaving(true)
     try {
       const res = await createItem(body)
-      showToast({ message: `"${res.itemName}" created in Loyverse.`, durationMs: 6000 })
+      showToast({
+        message: res.sku
+          ? `"${res.itemName}" created in Loyverse · SKU ${res.sku}`
+          : `"${res.itemName}" created in Loyverse.`,
+        durationMs: 6000,
+      })
       navigate(ROUTES.PRICE_LIST)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Create failed'
@@ -200,7 +215,13 @@ export function AddItem() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className={labelClass}>SKU</label>
-                <input className={inputClass} value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Auto-generated if blank" />
+                <input
+                  className={inputClass}
+                  value={sku}
+                  onChange={(e) => { setSku(e.target.value); setSkuEdited(true) }}
+                  placeholder={nextSkuLoading ? 'Loading next SKU…' : 'Auto-assigned by Loyverse'}
+                />
+                <p className="text-[11px] text-base-content/35 mt-1">Auto-assigned by Loyverse to avoid duplicate SKUs. Leave as-is unless you need a custom one.</p>
               </div>
               <div>
                 <label className={labelClass}>Barcode</label>

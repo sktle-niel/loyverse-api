@@ -188,7 +188,13 @@ export interface CreateItemResponse {
   ok: boolean
   id?: string
   itemName: string
+  /** The SKU Loyverse actually assigned to the new item. */
+  sku?: string
   message: string
+}
+
+export interface NextSkuResponse {
+  sku: string
 }
 
 export interface PriceHistoryEntry {
