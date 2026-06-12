@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 
+export type ToastVariant = 'success' | 'error'
+
 export type Toast = {
   id: string
   message: string
   durationMs: number
+  variant: ToastVariant
 }
 
 type ToastContextValue = {
   toast: Toast | null
-  showToast: (opts: { message: string; durationMs?: number }) => void
+  showToast: (opts: { message: string; durationMs?: number; variant?: ToastVariant }) => void
   closeToast: () => void
 }
 
@@ -22,11 +25,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const showToast = useCallback(
-    ({ message, durationMs = 6000 }: { message: string; durationMs?: number }) => {
+    ({ message, durationMs = 6000, variant = 'success' }: { message: string; durationMs?: number; variant?: ToastVariant }) => {
       setToast({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         message,
         durationMs,
+        variant,
       })
     },
     [],

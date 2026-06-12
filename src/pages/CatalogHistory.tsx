@@ -379,10 +379,7 @@ export function CatalogHistory() {
                 ) : (
                   pagedItems.map((it, index) => (
                     <div key={it.id} className="p-4 space-y-2 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium text-sm text-base-content leading-snug">{it.itemName}</p>
-                        <span className="text-sm font-semibold text-base-content tabular shrink-0">{formatPeso(it.defaultPrice)}</span>
-                      </div>
+                      <p className="font-medium text-sm text-base-content leading-snug">{it.itemName}</p>
                       <div className="flex items-center justify-between gap-2 text-xs text-base-content/55">
                         <span>SKU: {it.sku || '—'}</span>
                         <span>Cost {formatPeso(it.cost)}</span>
@@ -404,23 +401,21 @@ export function CatalogHistory() {
                       <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Item</th>
                       <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">SKU</th>
                       <th className="py-3 px-4 text-right text-xs font-medium text-base-content/45 tracking-wide">Cost</th>
-                      <th className="py-3 px-4 text-right text-xs font-medium text-base-content/45 tracking-wide">Price</th>
                       <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Added by</th>
                       <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoading ? (
-                      Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={6} />)
+                      Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={5} />)
                     ) : visibleItems.length === 0 ? (
-                      <tr><td colSpan={6} className="py-16 text-center text-sm text-base-content/40">{emptyMessage}</td></tr>
+                      <tr><td colSpan={5} className="py-16 text-center text-sm text-base-content/40">{emptyMessage}</td></tr>
                     ) : (
                       pagedItems.map((it, index) => (
                         <tr key={it.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                           <td className="py-3.5 px-4 font-medium text-base-content break-words">{it.itemName}</td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{it.sku || '—'}</td>
                           <td className="py-3.5 px-4 text-right text-base-content/60 tabular whitespace-nowrap">{formatPeso(it.cost)}</td>
-                          <td className="py-3.5 px-4 text-right font-medium text-base-content tabular whitespace-nowrap">{formatPeso(it.defaultPrice)}</td>
                           <td className="py-3.5 px-4 text-base-content/60">{it.createdBy}</td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{formatTime(it.createdAt)}</td>
                         </tr>

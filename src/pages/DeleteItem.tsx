@@ -140,7 +140,7 @@ export function DeleteItem() {
       setConfirmTarget(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Delete failed'
-      showToast({ message: `Failed to delete. ${msg}`, durationMs: 7000 })
+      showToast({ message: `Failed to delete. ${msg}`, durationMs: 7000, variant: 'error' })
     } finally {
       setDeletingId(null)
     }

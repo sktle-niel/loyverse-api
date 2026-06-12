@@ -92,7 +92,7 @@ function PriceModal({
   const saveEdit = async (storeId: string, storeName: string) => {
     const v = draft.trim()
     if (!/^\d+(\.\d{1,2})?$/.test(v)) {
-      showToast({ message: 'Enter a valid price (e.g. 160 or 160.50).', durationMs: 4000 })
+      showToast({ message: 'Enter a valid price (e.g. 160 or 160.50).', durationMs: 4000, variant: 'error' })
       return
     }
     const price = Number(v)
@@ -105,7 +105,7 @@ function PriceModal({
       if (showHistory) void loadHistory()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Update failed'
-      showToast({ message: `Failed to update price. ${msg}`, durationMs: 7000 })
+      showToast({ message: `Failed to update price. ${msg}`, durationMs: 7000, variant: 'error' })
     } finally {
       setSavingStoreId(null)
     }

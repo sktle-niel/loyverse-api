@@ -316,6 +316,26 @@ export interface DeletableItemsResponse {
   total: number
 }
 
+export interface ExportItemStock {
+  storeId: string
+  storeName: string
+  inStock: number
+}
+
+export interface ExportItemRow {
+  handle: string
+  sku: string
+  name: string
+  category: string
+  cost: number | null
+  stocks: ExportItemStock[]
+}
+
+export interface ExportItemsResponse {
+  stores: StoreInfo[]
+  items: ExportItemRow[]
+}
+
 export interface DeleteItemResponse {
   ok: boolean
   itemId: string

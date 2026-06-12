@@ -209,9 +209,13 @@ export async function apiDeleteJson<T>(path: string, options?: RequestOptions): 
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
+  // No request body → don't declare a JSON content-type, or the server rejects the empty body.
+  const token = getStoredToken()
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
   let res: Response
   try {
-    res = await executeRequest(url, { method: 'DELETE', headers: buildHeaders() }, timeoutMs)
+    res = await executeRequest(url, { method: 'DELETE', headers }, timeoutMs)
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
       throw new Error(buildTimeoutMessage())

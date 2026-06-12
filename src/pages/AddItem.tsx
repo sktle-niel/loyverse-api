@@ -90,21 +90,21 @@ export function AddItem() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      showToast({ message: 'Item name is required.', durationMs: 4000 })
+      showToast({ message: 'Item name is required.', durationMs: 4000, variant: 'error' })
       return
     }
     // Validate numeric fields
     const numericFields: [string, string][] = [['Cost', cost], ['Price', price]]
     for (const [label, v] of numericFields) {
       if (v.trim() && !PRICE_RE.test(v.trim())) {
-        showToast({ message: `${label} must be a valid amount (e.g. 160 or 160.50).`, durationMs: 4000 })
+        showToast({ message: `${label} must be a valid amount (e.g. 160 or 160.50).`, durationMs: 4000, variant: 'error' })
         return
       }
     }
     for (const s of stores) {
       const p = storeRows[s.id]?.price ?? ''
       if (p.trim() && !PRICE_RE.test(p.trim())) {
-        showToast({ message: `Price for ${s.name} must be a valid amount.`, durationMs: 4000 })
+        showToast({ message: `Price for ${s.name} must be a valid amount.`, durationMs: 4000, variant: 'error' })
         return
       }
     }
@@ -142,7 +142,7 @@ export function AddItem() {
       navigate(ROUTES.PRICE_LIST)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Create failed'
-      showToast({ message: `Failed to create item. ${msg}`, durationMs: 7000 })
+      showToast({ message: `Failed to create item. ${msg}`, durationMs: 7000, variant: 'error' })
     } finally {
       setSaving(false)
     }

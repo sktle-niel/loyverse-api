@@ -172,7 +172,7 @@ export function OperatorQueue() {
       showToast({ message: 'Request cancelled.', durationMs: 5000 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to cancel request.'
-      showToast({ message: `Cancel failed: ${msg}`, durationMs: 6000 })
+      showToast({ message: `Cancel failed: ${msg}`, durationMs: 6000, variant: 'error' })
     } finally {
       setCancellingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }
