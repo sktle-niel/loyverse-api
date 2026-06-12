@@ -78,7 +78,7 @@ export function PendingRequests() {
       await cancelStock(id)
       showToast({ message: 'Request cancelled.', durationMs: 5000 })
     } catch (e) {
-      showToast({ message: `Cancel failed: ${e instanceof Error ? e.message : 'Unknown error'}`, durationMs: 6000 })
+      showToast({ message: `Cancel failed: ${e instanceof Error ? e.message : 'Unknown error'}`, durationMs: 6000, variant: 'error' })
     } finally {
       setCancellingIds(prev => { const next = new Set(prev); next.delete(id); return next })
     }
@@ -91,7 +91,7 @@ export function PendingRequests() {
       showToast({ message: 'Transfer request cancelled.', durationMs: 5000 })
       void fetchTransfers('pending')
     } catch (e) {
-      showToast({ message: `Cancel failed: ${e instanceof Error ? e.message : 'Unknown error'}`, durationMs: 6000 })
+      showToast({ message: `Cancel failed: ${e instanceof Error ? e.message : 'Unknown error'}`, durationMs: 6000, variant: 'error' })
     } finally {
       setCancellingIds(prev => { const next = new Set(prev); next.delete(id); return next })
     }

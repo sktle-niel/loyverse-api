@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { Product, StoreInfo } from '../api/types'
+import type { ExportItemsResponse, Product, StoreInfo } from '../api/types'
+import { apiFetchJson } from '../api/client'
 import { useProducts } from '../hooks/useProducts'
 import { useProductSearch } from '../hooks/useProductSearch'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+import { buildItemsCsv, downloadCsv } from '../utils/exportItems'
 
 const ITEMS_PER_PAGE = 10
 
@@ -46,6 +48,7 @@ export function Inventory() {
   const [currentPage, setCurrentPage] = useState(1)
   const [drafts, setDrafts] = useState<Record<string, ProductDraft>>({})
   const [savingProductId, setSavingProductId] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const { results: products, isSearching } = useProductSearch(query, allProducts)
   const isLoading = productsLoading
@@ -80,13 +83,13 @@ export function Inventory() {
     const draft = getDraft(p.id)
 
     if (!draft.storeId) {
-      showToast({ message: `Select a branch for ${p.name}.`, durationMs: 5000 })
+      showToast({ message: `Select a branch for ${p.name}.`, durationMs: 5000, variant: 'error' })
       return
     }
 
     const stock = validateStock(draft.stock)
     if (stock === null) {
-      showToast({ message: `Enter a valid stock quantity (0 or higher) for ${p.name}.`, durationMs: 5000 })
+      showToast({ message: `Enter a valid stock quantity (0 or higher) for ${p.name}.`, durationMs: 5000, variant: 'error' })
       return
     }
 
@@ -133,10 +136,30 @@ export function Inventory() {
         showToast({
           message: `Failed to submit stock change for ${p.name}. ${msg}`,
           durationMs: 6000,
+          variant: 'error',
         })
       }
     } finally {
       setSavingProductId(null)
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const data = await apiFetchJson<ExportItemsResponse>('/items/export', { timeoutMs: 120_000 })
+      if (data.items.length === 0) {
+        showToast({ message: 'No in-stock items to export.', durationMs: 5000, variant: 'error' })
+        return
+      }
+      const stamp = new Date().toISOString().slice(0, 10)
+      downloadCsv(`inventory_in_stock_${stamp}.csv`, buildItemsCsv(data))
+      showToast({ message: `Exported ${data.items.length} in-stock items to CSV.`, durationMs: 5000 })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Export failed'
+      showToast({ message: `Export failed. ${msg}`, durationMs: 7000, variant: 'error' })
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -161,18 +184,38 @@ export function Inventory() {
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
-            disabled={isLoading || isRefreshing}
-            onClick={() => void refreshCatalog()}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-            </svg>
-            {isRefreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20"
+              disabled={isLoading || exporting}
+              onClick={() => void handleExport()}
+              title="Export in-stock items to CSV (Excel)"
+            >
+              {exporting ? (
+                <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              )}
+              {exporting ? 'Exporting…' : 'Export'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20"
+              disabled={isLoading || isRefreshing}
+              onClick={() => void refreshCatalog()}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         </header>
 
         {productsError && (

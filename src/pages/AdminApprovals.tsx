@@ -171,7 +171,7 @@ export function AdminApprovals() {
       }, 30_000)
       syncTimeoutsRef.current.set(id, t)
     } catch {
-      showToast({ message: 'Failed to fetch transfer data. Please try again.', durationMs: 4000 })
+      showToast({ message: 'Failed to fetch transfer data. Please try again.', durationMs: 4000, variant: 'error' })
     } finally {
       setSyncingIds((prev) => { const s = new Set(prev); s.delete(id); return s })
     }
@@ -263,7 +263,7 @@ export function AdminApprovals() {
       } else {
         deleteTransferStoredId(id)
         setBgTransferTick((t) => t + 1)
-        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000 })
+        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000, variant: 'error' })
       }
     } finally {
       setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
@@ -279,7 +279,7 @@ export function AdminApprovals() {
       void fetchTransfers('pending')
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to reject transfer.'
-      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000 })
+      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000, variant: 'error' })
     } finally {
       setRejectingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }
@@ -305,7 +305,7 @@ export function AdminApprovals() {
       } else {
         deleteStoredId(id)
         setBgTick((t) => t + 1)
-        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000 })
+        showToast({ message: `Approve failed: ${msg}`, durationMs: 8000, variant: 'error' })
       }
     } finally {
       setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
@@ -320,7 +320,7 @@ export function AdminApprovals() {
       showToast({ message: 'Request rejected.', durationMs: 6000 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to reject request.'
-      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000 })
+      showToast({ message: `Reject failed: ${msg}`, durationMs: 6000, variant: 'error' })
     } finally {
       setRejectingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }

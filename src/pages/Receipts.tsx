@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useReceipts } from '../hooks/useReceipts'
-import type { Receipt } from '../api/types'
+import type { Receipt, ReceiptsSummary } from '../api/types'
 
 const ITEMS_PER_PAGE = 25
 
@@ -38,6 +38,88 @@ const RefundIcon = ({ size = 18 }: { size?: number }) => (
     <path d="M3 7v6h6" /><path d="M3.51 13a9 9 0 1 0 .49-4.51L3 13" />
   </svg>
 )
+const StoreIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l1-5h16l1 5M4 9v11h16V9M4 9h16" /><path d="M9 20v-6h6v6" />
+  </svg>
+)
+const EmployeeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" />
+  </svg>
+)
+const ChevronDown = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-base-content/40 shrink-0">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+
+/** Loyverse-style dropdown with a checkbox per option + a "select all" header. null = all selected. */
+function MultiSelectDropdown({ icon, allLabel, noun, options, selected, onChange }: {
+  icon?: ReactNode
+  allLabel: string
+  noun: string
+  options: { id: string; name: string }[]
+  selected: Set<string> | null
+  onChange: (next: Set<string> | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const total = options.length
+  const allSelected = selected === null || selected.size === total
+  const isChecked = (id: string) => (selected === null ? true : selected.has(id))
+  const count = selected === null ? total : selected.size
+
+  const label = allSelected
+    ? allLabel
+    : count === 0
+      ? `No ${noun}`
+      : count === 1
+        ? options.find((o) => isChecked(o.id))?.name ?? `1 ${noun}`
+        : `${count} ${noun}`
+
+  const toggleAll = (checked: boolean) => onChange(checked ? new Set(options.map((o) => o.id)) : new Set())
+  const toggleOne = (id: string) => {
+    const base = selected === null ? new Set(options.map((o) => o.id)) : new Set(selected)
+    if (base.has(id)) base.delete(id)
+    else base.add(id)
+    onChange(base)
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-lg border border-base-content/12 bg-base-100 px-3 py-1.5 text-sm text-base-content hover:border-base-content/25 transition-colors min-w-[10rem]"
+      >
+        {icon && <span className="text-base-content/45 shrink-0">{icon}</span>}
+        <span className="truncate flex-1 text-left">{label}</span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1.5 z-30 w-64 max-h-72 overflow-y-auto rounded-lg border border-base-content/10 bg-base-100 shadow-xl py-1">
+            <label className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-base-content/5 border-b border-base-content/8">
+              <input type="checkbox" className="checkbox checkbox-xs checkbox-primary" checked={allSelected} onChange={(e) => toggleAll(e.target.checked)} />
+              <span className="text-sm font-medium text-base-content">{allLabel}</span>
+            </label>
+            {options.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-base-content/40">None available.</p>
+            ) : (
+              options.map((o) => (
+                <label key={o.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-base-content/5">
+                  <input type="checkbox" className="checkbox checkbox-xs checkbox-primary" checked={isChecked(o.id)} onChange={() => toggleOne(o.id)} />
+                  <span className="text-sm text-base-content/80 break-words">{o.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function ReceiptDrawer({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
   useEffect(() => {
@@ -147,35 +229,52 @@ function SkeletonRow({ cols }: { cols: number }) {
 }
 
 export function Receipts() {
-  const { receipts, summary, stores, employees, source, isLoading, error, load } = useReceipts()
+  const { receipts, stores, employees, source, isLoading, error, load } = useReceipts()
 
   const [fromDate, setFromDate] = useState(todayLocal)
   const [toDate, setToDate] = useState(todayLocal)
-  const [storeId, setStoreId] = useState('')
-  const [employeeId, setEmployeeId] = useState('')
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string> | null>(null)
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string> | null>(null)
   const [query, setQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [selected, setSelected] = useState<Receipt | null>(null)
 
+  // Date range is fetched server-side; store/employee multi-select filters client-side (no refetch).
   useEffect(() => {
-    void load({
-      from: dayStartISO(fromDate),
-      to: dayEndISO(toDate),
-      storeId: storeId || undefined,
-      employeeId: employeeId || undefined,
+    void load({ from: dayStartISO(fromDate), to: dayEndISO(toDate) })
+  }, [fromDate, toDate, load])
+
+  const scopeFiltered = useMemo(() => {
+    const allStores = selectedStoreIds === null || selectedStoreIds.size === stores.length
+    const allEmps = selectedEmployeeIds === null || selectedEmployeeIds.size === employees.length
+    return receipts.filter((r) => {
+      if (!allStores && !selectedStoreIds!.has(r.storeId)) return false
+      if (!allEmps && !selectedEmployeeIds!.has(r.employeeId)) return false
+      return true
     })
-  }, [fromDate, toDate, storeId, employeeId, load])
+  }, [receipts, selectedStoreIds, selectedEmployeeIds, stores.length, employees.length])
+
+  // Summary reflects the date + store + employee filters (not the text search), like Loyverse.
+  const summary = useMemo<ReceiptsSummary>(() => {
+    const sales = scopeFiltered.filter((r) => r.type === 'SALE')
+    return {
+      receipts: scopeFiltered.length,
+      sales: sales.length,
+      refunds: scopeFiltered.filter((r) => r.type === 'REFUND').length,
+      totalSales: sales.reduce((sum, r) => sum + r.total, 0),
+    }
+  }, [scopeFiltered])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return receipts
-    return receipts.filter((r) => {
+    if (!q) return scopeFiltered
+    return scopeFiltered.filter((r) => {
       const hay = `${r.receiptNumber} ${r.storeName} ${r.employeeName}`.toLowerCase()
       return q.split(/\s+/).every((t) => hay.includes(t))
     })
-  }, [receipts, query])
+  }, [scopeFiltered, query])
 
-  useEffect(() => { setCurrentPage(1) }, [query, fromDate, toDate, storeId, employeeId])
+  useEffect(() => { setCurrentPage(1) }, [query, fromDate, toDate, selectedStoreIds, selectedEmployeeIds])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
   const safePage = Math.min(currentPage, totalPages)
@@ -207,23 +306,31 @@ export function Receipts() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-base-content/45">Store</span>
-            <select className={inputClass} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-              <option value="">All stores</option>
-              {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <MultiSelectDropdown
+              icon={<StoreIcon />}
+              allLabel="All stores"
+              noun="stores"
+              options={stores.map((s) => ({ id: s.id, name: s.name }))}
+              selected={selectedStoreIds}
+              onChange={setSelectedStoreIds}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-base-content/45">Employee</span>
-            <select className={inputClass} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-              <option value="">All employees</option>
-              {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-            </select>
+            <MultiSelectDropdown
+              icon={<EmployeeIcon />}
+              allLabel="All employees"
+              noun="employees"
+              options={employees}
+              selected={selectedEmployeeIds}
+              onChange={setSelectedEmployeeIds}
+            />
           </div>
           <button
             type="button"
             className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 ml-auto"
             disabled={isLoading}
-            onClick={() => void load({ from: dayStartISO(fromDate), to: dayEndISO(toDate), storeId: storeId || undefined, employeeId: employeeId || undefined })}
+            onClick={() => void load({ from: dayStartISO(fromDate), to: dayEndISO(toDate) })}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />

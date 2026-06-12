@@ -23,6 +23,7 @@ export function ToastLayer() {
       open={true}
       message={toast.message}
       durationMs={toast.durationMs}
+      variant={toast.variant}
       onClose={closeToast}
     />
   )
