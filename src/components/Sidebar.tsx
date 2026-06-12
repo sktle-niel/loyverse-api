@@ -100,6 +100,14 @@ const HistoryIcon = () => (
   </svg>
 )
 
+const CatalogHistoryIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 3v5h5" />
+    <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+)
+
 const ManualIcon = () => (
   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
@@ -129,6 +137,7 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
         DIVIDER,
         { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
         { type: 'link', path: ROUTES.HISTORY,          label: 'History',          icon: HistoryIcon },
+        { type: 'link', path: ROUTES.CATALOG_HISTORY,  label: 'Catalog History',  icon: CatalogHistoryIcon },
         DIVIDER,
         { type: 'link', path: ROUTES.OPERATORS,        label: 'Operators',        icon: OperatorsIcon },
       ]
@@ -138,6 +147,7 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
         { type: 'link', path: ROUTES.TRANSFER,         label: 'Stock Levels',     icon: TransferIcon },
         { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
         { type: 'link', path: ROUTES.ADD_ITEM,         label: 'Add Item',         icon: AddItemIcon },
+        { type: 'link', path: ROUTES.CATALOG_HISTORY,  label: 'Catalog History',  icon: CatalogHistoryIcon },
         DIVIDER,
         // Requests & history
         { type: 'link', path: ROUTES.PENDING,          label: 'Pending',          icon: PendingIcon },
