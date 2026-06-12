@@ -3,14 +3,17 @@ import { apiFetchJson } from '../api/client'
 import type {
   CreatedItemRecord,
   CreatedItemsResponse,
+  DeletedItemRecord,
+  DeletedItemsResponse,
   PriceHistoryEntry,
   PriceHistoryResponse,
 } from '../api/types'
 
-/** Loads both price-change history and the created-items log for the Catalog History page. */
+/** Loads price-change history plus the created- and deleted-item logs for the Catalog History page. */
 export function useCatalogHistory() {
   const [priceHistory, setPriceHistory] = useState<PriceHistoryEntry[]>([])
   const [createdItems, setCreatedItems] = useState<CreatedItemRecord[]>([])
+  const [deletedItems, setDeletedItems] = useState<DeletedItemRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,12 +21,14 @@ export function useCatalogHistory() {
     setIsLoading(true)
     setError(null)
     try {
-      const [ph, ci] = await Promise.all([
+      const [ph, ci, di] = await Promise.all([
         apiFetchJson<PriceHistoryResponse>('/price-history'),
         apiFetchJson<CreatedItemsResponse>('/items/created'),
+        apiFetchJson<DeletedItemsResponse>('/items/deleted'),
       ])
       setPriceHistory(ph.history)
       setCreatedItems(ci.items)
+      setDeletedItems(di.items)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load history')
     } finally {
@@ -35,5 +40,5 @@ export function useCatalogHistory() {
     void fetchAll()
   }, [fetchAll])
 
-  return { priceHistory, createdItems, isLoading, error, refetch: fetchAll }
+  return { priceHistory, createdItems, deletedItems, isLoading, error, refetch: fetchAll }
 }

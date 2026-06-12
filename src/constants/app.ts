@@ -10,6 +10,8 @@ export const ROUTES = {
   TRANSFER_HISTORY: '/transfer-history',
   PRICE_LIST: '/price-list',
   ADD_ITEM: '/add-item',
+  DELETE_ITEM: '/delete-item',
+  RECEIPTS: '/receipts',
   CATALOG_HISTORY: '/catalog-history',
 } as const
 

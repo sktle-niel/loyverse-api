@@ -203,3 +203,21 @@ export async function apiPostJson<T>(
 
   return handleResponse<T>(res)
 }
+
+export async function apiDeleteJson<T>(path: string, options?: RequestOptions): Promise<T> {
+  const baseUrl = getApiBaseUrl()
+  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+
+  let res: Response
+  try {
+    res = await executeRequest(url, { method: 'DELETE', headers: buildHeaders() }, timeoutMs)
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(buildTimeoutMessage())
+    }
+    throw e
+  }
+
+  return handleResponse<T>(res)
+}

@@ -100,6 +100,22 @@ const HistoryIcon = () => (
   </svg>
 )
 
+const DeleteItemIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+)
+
+const ReceiptsIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />
+    <line x1="8" y1="8" x2="16" y2="8" /><line x1="8" y1="12" x2="16" y2="12" />
+  </svg>
+)
+
 const CatalogHistoryIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 3v5h5" />
@@ -125,34 +141,36 @@ const SignOutIcon = () => (
 
 type NavItem =
   | { type: 'link'; path: string; label: string; icon: () => React.ReactNode }
-  | { type: 'divider' }
-
-const DIVIDER: NavItem = { type: 'divider' }
+  | { type: 'section'; label: string }
 
 export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageChange }: SidebarProps) {
   const menuItems: NavItem[] = isAdmin
     ? [
+        { type: 'section', label: 'Overview' },
         { type: 'link', path: ROUTES.DASHBOARD,        label: 'Dashboard',        icon: DashboardIcon },
         { type: 'link', path: ROUTES.APPROVALS,        label: 'Approvals',        icon: ApprovalsIcon },
-        DIVIDER,
+        { type: 'section', label: 'History' },
+        { type: 'link', path: ROUTES.HISTORY,          label: 'Stock History',    icon: HistoryIcon },
         { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
-        { type: 'link', path: ROUTES.HISTORY,          label: 'History',          icon: HistoryIcon },
         { type: 'link', path: ROUTES.CATALOG_HISTORY,  label: 'Catalog History',  icon: CatalogHistoryIcon },
-        DIVIDER,
+        { type: 'section', label: 'Manage' },
         { type: 'link', path: ROUTES.OPERATORS,        label: 'Operators',        icon: OperatorsIcon },
       ]
     : [
-        // Main catalog & inventory actions
+        { type: 'section', label: 'Operations' },
         { type: 'link', path: ROUTES.INVENTORY,        label: 'Inventory',        icon: InventoryIcon },
         { type: 'link', path: ROUTES.TRANSFER,         label: 'Stock Levels',     icon: TransferIcon },
         { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
+        { type: 'link', path: ROUTES.RECEIPTS,         label: 'Receipts',         icon: ReceiptsIcon },
+        { type: 'section', label: 'Items' },
         { type: 'link', path: ROUTES.ADD_ITEM,         label: 'Add Item',         icon: AddItemIcon },
-        { type: 'link', path: ROUTES.CATALOG_HISTORY,  label: 'Catalog History',  icon: CatalogHistoryIcon },
-        DIVIDER,
-        // Requests & history
-        { type: 'link', path: ROUTES.PENDING,          label: 'Pending',          icon: PendingIcon },
+        { type: 'link', path: ROUTES.DELETE_ITEM,      label: 'Delete Item',      icon: DeleteItemIcon },
+        { type: 'section', label: 'Requests' },
+        { type: 'link', path: ROUTES.PENDING,          label: 'Pending Requests', icon: PendingIcon },
         { type: 'link', path: ROUTES.QUEUE,            label: 'My Requests',      icon: QueueIcon },
+        { type: 'section', label: 'History' },
         { type: 'link', path: ROUTES.TRANSFER_HISTORY, label: 'Transfer History', icon: TransferHistoryIcon },
+        { type: 'link', path: ROUTES.CATALOG_HISTORY,  label: 'Catalog History',  icon: CatalogHistoryIcon },
       ]
 
   const initial = userDisplayName?.[0]?.toUpperCase() ?? '?'
@@ -177,10 +195,17 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5" aria-label="Main navigation">
         {menuItems.map((item, i) => {
-          if (item.type === 'divider') {
-            return <div key={`divider-${i}`} className="my-2 mx-1 h-px bg-base-content/8" />
+          if (item.type === 'section') {
+            return (
+              <p
+                key={`section-${i}`}
+                className="px-3 pt-5 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/35 select-none first:pt-1"
+              >
+                {item.label}
+              </p>
+            )
           }
           const Icon = item.icon
           return (
@@ -189,10 +214,10 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
               to={item.path}
               onClick={onPageChange}
               className={({ isActive }) =>
-                `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg relative transition-all duration-150 text-left ${
+                `w-full flex items-center gap-3 px-3 py-2 rounded-lg relative transition-all duration-150 text-left ${
                   isActive
                     ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-base-content/55 hover:text-base-content hover:bg-base-content/5'
+                    : 'text-base-content/70 hover:text-base-content hover:bg-base-content/5'
                 }`
               }
             >

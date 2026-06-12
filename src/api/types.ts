@@ -246,6 +246,83 @@ export interface CreatedItemsResponse {
   total: number
 }
 
+export interface DeletedItemRecord {
+  id: string
+  itemId: string
+  itemName: string
+  sku: string
+  deletedBy: string
+  createdAt: string
+}
+
+export interface DeletedItemsResponse {
+  items: DeletedItemRecord[]
+  total: number
+}
+
+export interface ReceiptLineItem {
+  itemName: string
+  variantName: string | null
+  quantity: number
+  price: number
+  total: number
+}
+
+export interface ReceiptPayment {
+  name: string
+  type: string
+  amount: number
+}
+
+export interface Receipt {
+  receiptNumber: string
+  type: 'SALE' | 'REFUND'
+  date: string
+  storeId: string
+  storeName: string
+  employeeId: string
+  employeeName: string
+  customerName: string | null
+  posDeviceName: string | null
+  total: number
+  cancelledAt: string | null
+  lineItems: ReceiptLineItem[]
+  payments: ReceiptPayment[]
+}
+
+export interface ReceiptsSummary {
+  receipts: number
+  sales: number
+  refunds: number
+  totalSales: number
+}
+
+export interface ReceiptEmployee {
+  id: string
+  name: string
+}
+
+export interface ReceiptsResponse {
+  receipts: Receipt[]
+  summary: ReceiptsSummary
+  stores: StoreInfo[]
+  employees: ReceiptEmployee[]
+  source: 'loyverse' | 'mock'
+}
+
+export interface DeletableItemsResponse {
+  items: StockLevelProduct[]
+  stores: StoreInfo[]
+  total: number
+}
+
+export interface DeleteItemResponse {
+  ok: boolean
+  itemId: string
+  itemName: string
+  message: string
+}
+
 export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface TransferRequest {
