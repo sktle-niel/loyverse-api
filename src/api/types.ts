@@ -220,6 +220,32 @@ export interface PriceHistoryResponse {
   total: number
 }
 
+export interface CreatedItemStoreInfo {
+  storeId: string
+  available: boolean
+  price: number | null
+}
+
+export interface CreatedItemRecord {
+  id: string
+  itemId: string
+  itemName: string
+  sku: string
+  categoryId: string | null
+  cost: number | null
+  defaultPrice: number | null
+  trackStock: boolean
+  soldByWeight: boolean
+  stores: CreatedItemStoreInfo[]
+  createdBy: string
+  createdAt: string
+}
+
+export interface CreatedItemsResponse {
+  items: CreatedItemRecord[]
+  total: number
+}
+
 export type TransferRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export interface TransferRequest {

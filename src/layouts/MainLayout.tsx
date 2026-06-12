@@ -13,6 +13,7 @@ import { TransferHistory } from '../pages/TransferHistory'
 import { PendingRequests } from '../pages/PendingRequests'
 import { PriceList } from '../pages/PriceList'
 import { AddItem } from '../pages/AddItem'
+import { CatalogHistory } from '../pages/CatalogHistory'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { ROUTES } from '../constants/app'
@@ -87,6 +88,7 @@ export function MainLayout() {
           <Route path={ROUTES.PRICE_LIST} element={!isAdmin ? <PriceList /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.ADD_ITEM} element={!isAdmin ? <AddItem /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.TRANSFER_HISTORY} element={<TransferHistory />} />
+          <Route path={ROUTES.CATALOG_HISTORY} element={<CatalogHistory />} />
           <Route path="*" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
         </Routes>
 
