@@ -13,6 +13,7 @@ export const ROUTES = {
   DELETE_ITEM: '/delete-item',
   RECEIPTS: '/receipts',
   CATALOG_HISTORY: '/catalog-history',
+  ACCOUNT: '/account',
 } as const
 
 export const USER_MANUAL_URL =
