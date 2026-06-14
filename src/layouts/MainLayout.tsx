@@ -16,6 +16,7 @@ import { AddItem } from '../pages/AddItem'
 import { DeleteItem } from '../pages/DeleteItem'
 import { Receipts } from '../pages/Receipts'
 import { CatalogHistory } from '../pages/CatalogHistory'
+import { AccountSettings } from '../pages/AccountSettings'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { ROUTES } from '../constants/app'
@@ -93,6 +94,7 @@ export function MainLayout() {
           <Route path={ROUTES.RECEIPTS} element={!isAdmin ? <Receipts /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.TRANSFER_HISTORY} element={<TransferHistory />} />
           <Route path={ROUTES.CATALOG_HISTORY} element={<CatalogHistory />} />
+          <Route path={ROUTES.ACCOUNT} element={<AccountSettings />} />
           <Route path="*" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
         </Routes>
 
