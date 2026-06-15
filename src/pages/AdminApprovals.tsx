@@ -170,7 +170,7 @@ export function AdminApprovals() {
       try {
         await refreshLiveStocks()
       } catch {
-        await fetchTransfers('pending')
+        await fetchTransfers('pending', { silent: true })
       }
       setSyncedIds((prev) => new Set(prev).add(id))
       // Clear any existing 30s timer for this id and start a fresh one
@@ -207,7 +207,7 @@ export function AdminApprovals() {
 
   useEffect(() => {
     if (backgroundIds.size === 0) return
-    const interval = setInterval(() => { void refetch('pending') }, 15_000)
+    const interval = setInterval(() => { void refetch('pending', { silent: true }) }, 15_000)
     return () => clearInterval(interval)
   }, [backgroundIds, refetch])
 
@@ -234,7 +234,7 @@ export function AdminApprovals() {
   // Poll transfer requests while a background approval is in-flight
   useEffect(() => {
     if (backgroundTransferIds.size === 0) return
-    const interval = setInterval(() => { void fetchTransfers('pending') }, 15_000)
+    const interval = setInterval(() => { void fetchTransfers('pending', { silent: true }) }, 15_000)
     return () => clearInterval(interval)
   }, [backgroundTransferIds, fetchTransfers])
 
@@ -251,7 +251,7 @@ export function AdminApprovals() {
     void refreshLiveStocks().catch(() => {})
     const interval = setInterval(() => {
       void refreshLiveStocks().catch(() => {})
-      void fetchTransfers('pending')
+      void fetchTransfers('pending', { silent: true })
     }, 15_000)
     return () => clearInterval(interval)
   }, [activeTab, refreshLiveStocks, fetchTransfers])
@@ -266,7 +266,7 @@ export function AdminApprovals() {
       setBgTransferTick((t) => t + 1)
       setDoneIds((prev) => new Set(prev).add(id))
       showToast({ message: 'Transfer approved. Loyverse stock updated.', durationMs: 6000 })
-      void fetchTransfers('pending')
+      void fetchTransfers('pending', { silent: true })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to approve transfer.'
       if (msg.includes('timed out')) {
@@ -287,7 +287,7 @@ export function AdminApprovals() {
       await rejectTransfer(id, user?.displayName ?? 'Admin')
       setDoneIds((prev) => new Set(prev).add(id))
       showToast({ message: 'Transfer rejected.', durationMs: 4000 })
-      void fetchTransfers('pending')
+      void fetchTransfers('pending', { silent: true })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to reject transfer.'
       showToast({ message: `Reject failed: ${msg}`, durationMs: 6000, variant: 'error' })
@@ -335,7 +335,7 @@ export function AdminApprovals() {
       } else if (isAlreadyResolved(msg)) {
         // Not a failure — it already left the queue. Reconcile the list quietly.
         showToast({ message: 'Already approved.', durationMs: 4000 })
-        void refetch('pending')
+        void refetch('pending', { silent: true })
       } else {
         showToast({ message: `Approve failed: ${msg}`, durationMs: 8000, variant: 'error' })
       }
@@ -399,7 +399,7 @@ export function AdminApprovals() {
       })
     }
 
-    void refetch('pending')
+    void refetch('pending', { silent: true })
   }
 
   const handleReject = async (id: string) => {
