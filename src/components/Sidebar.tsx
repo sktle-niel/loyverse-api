@@ -11,15 +11,6 @@ interface SidebarProps {
   onPageChange: () => void
 }
 
-const DashboardIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="14" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
-  </svg>
-)
-
 const InventoryIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
@@ -154,7 +145,6 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
   const menuItems: NavItem[] = isAdmin
     ? [
         { type: 'section', label: 'Overview' },
-        { type: 'link', path: ROUTES.DASHBOARD,        label: 'Dashboard',        icon: DashboardIcon },
         { type: 'link', path: ROUTES.APPROVALS,        label: 'Approvals',        icon: ApprovalsIcon },
         { type: 'section', label: 'History' },
         { type: 'link', path: ROUTES.HISTORY,          label: 'Stock History',    icon: HistoryIcon },
