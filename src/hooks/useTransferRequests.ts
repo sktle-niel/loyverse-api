@@ -8,8 +8,10 @@ export function useTransferRequests() {
   const [hasFetched, setHasFetched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchRequests = useCallback(async (status?: string) => {
-    setIsLoading(true)
+  const fetchRequests = useCallback(async (status?: string, options?: { silent?: boolean }) => {
+    // Silent mode (background polling) refreshes data WITHOUT flipping the table back to its
+    // loading skeleton, which is what made the list blink on every auto-refresh.
+    if (!options?.silent) setIsLoading(true)
     setError(null)
     try {
       const url = status ? `/transfer-requests?status=${status}` : '/transfer-requests'
@@ -18,7 +20,7 @@ export function useTransferRequests() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch transfer requests')
     } finally {
-      setIsLoading(false)
+      if (!options?.silent) setIsLoading(false)
       setHasFetched(true)
     }
   }, [])

@@ -30,24 +30,26 @@ export function useCreateItem() {
   }, [])
 
   // Loyverse-style: preview the SKU that will be auto-assigned so it shows in the field immediately.
-  useEffect(() => {
-    let active = true
-    void (async () => {
-      try {
-        const res = await apiFetchJson<NextSkuResponse>('/items/next-sku')
-        if (active) setNextSku(res.sku ?? '')
-      } catch {
-        if (active) setNextSku('')
-      } finally {
-        if (active) setNextSkuLoading(false)
-      }
-    })()
-    return () => { active = false }
+  // Exposed as refetchNextSku so the form can advance the preview after creating an item.
+  const fetchNextSku = useCallback(async () => {
+    setNextSkuLoading(true)
+    try {
+      const res = await apiFetchJson<NextSkuResponse>('/items/next-sku')
+      setNextSku(res.sku ?? '')
+    } catch {
+      setNextSku('')
+    } finally {
+      setNextSkuLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    void fetchNextSku()
+  }, [fetchNextSku])
 
   const createItem = useCallback(async (body: CreateItemBody): Promise<CreateItemResponse> => {
     return apiPostJson<CreateItemResponse>('/items', body, { timeoutMs: 30_000 })
   }, [])
 
-  return { categories, categoriesLoading, nextSku, nextSkuLoading, createItem }
+  return { categories, categoriesLoading, nextSku, nextSkuLoading, createItem, refetchNextSku: fetchNextSku }
 }

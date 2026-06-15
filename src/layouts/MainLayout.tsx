@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { ThemeToggleButton } from '../components/ThemeToggleButton'
-import { Dashboard } from '../pages/Dashboard'
 import { Inventory } from '../pages/Inventory'
 import { AdminApprovals } from '../pages/AdminApprovals'
 import { AdminOperators } from '../pages/AdminOperators'
@@ -78,24 +77,23 @@ export function MainLayout() {
         </button>
 
         <Routes>
-          <Route path="/" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
+          <Route path="/" element={<Navigate to={isAdmin ? ROUTES.APPROVALS : ROUTES.INVENTORY} replace />} />
           <Route path="/reports" element={<Navigate to={ROUTES.INVENTORY} replace />} />
-          <Route path={ROUTES.DASHBOARD} element={isAdmin ? <Dashboard /> : <Navigate to={ROUTES.INVENTORY} replace />} />
           <Route path={ROUTES.INVENTORY} element={<Inventory />} />
           <Route path={ROUTES.APPROVALS} element={isAdmin ? <AdminApprovals /> : <Navigate to={ROUTES.INVENTORY} replace />} />
           <Route path={ROUTES.HISTORY} element={isAdmin ? <History /> : <Navigate to={ROUTES.INVENTORY} replace />} />
           <Route path={ROUTES.OPERATORS} element={isAdmin ? <AdminOperators /> : <Navigate to={ROUTES.INVENTORY} replace />} />
-          <Route path={ROUTES.QUEUE} element={!isAdmin ? <OperatorQueue /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.PENDING} element={!isAdmin ? <PendingRequests /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.TRANSFER} element={!isAdmin ? <Transfer /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.PRICE_LIST} element={!isAdmin ? <PriceList /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.ADD_ITEM} element={!isAdmin ? <AddItem /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.DELETE_ITEM} element={!isAdmin ? <DeleteItem /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
-          <Route path={ROUTES.RECEIPTS} element={!isAdmin ? <Receipts /> : <Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.QUEUE} element={!isAdmin ? <OperatorQueue /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.PENDING} element={!isAdmin ? <PendingRequests /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.TRANSFER} element={!isAdmin ? <Transfer /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.PRICE_LIST} element={!isAdmin ? <PriceList /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.ADD_ITEM} element={!isAdmin ? <AddItem /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.DELETE_ITEM} element={!isAdmin ? <DeleteItem /> : <Navigate to={ROUTES.APPROVALS} replace />} />
+          <Route path={ROUTES.RECEIPTS} element={!isAdmin ? <Receipts /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.TRANSFER_HISTORY} element={<TransferHistory />} />
           <Route path={ROUTES.CATALOG_HISTORY} element={<CatalogHistory />} />
           <Route path={ROUTES.ACCOUNT} element={<AccountSettings />} />
-          <Route path="*" element={<Navigate to={isAdmin ? ROUTES.DASHBOARD : ROUTES.INVENTORY} replace />} />
+          <Route path="*" element={<Navigate to={isAdmin ? ROUTES.APPROVALS : ROUTES.INVENTORY} replace />} />
         </Routes>
 
         <ThemeToggleButton onToggle={toggle} currentTheme={theme} />

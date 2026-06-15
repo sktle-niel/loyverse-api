@@ -15,19 +15,24 @@ export function useStockRequests(
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchRequests = useCallback(async (status: StockRequestStatus | 'all' = initialStatus) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const path = status === 'all' ? '/stock-requests' : `/stock-requests?status=${status}`
-      const response = await apiFetchJson<StockRequestsResponse>(path)
-      setRequests(response.requests)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch stock requests')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [initialStatus])
+  const fetchRequests = useCallback(
+    async (status: StockRequestStatus | 'all' = initialStatus, options?: { silent?: boolean }) => {
+      // Silent mode (used by background polling) refreshes the data WITHOUT flipping the table
+      // back to its loading skeleton — that flip is what made the list visibly blink.
+      if (!options?.silent) setIsLoading(true)
+      setError(null)
+      try {
+        const path = status === 'all' ? '/stock-requests' : `/stock-requests?status=${status}`
+        const response = await apiFetchJson<StockRequestsResponse>(path)
+        setRequests(response.requests)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to fetch stock requests')
+      } finally {
+        if (!options?.silent) setIsLoading(false)
+      }
+    },
+    [initialStatus],
+  )
 
   useEffect(() => {
     if (!enabled) {
