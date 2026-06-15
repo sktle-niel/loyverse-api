@@ -73,6 +73,12 @@ function deleteTransferStoredId(id: string) {
   } catch { /* ignore */ }
 }
 
+// A 409 from the server means the request already left the pending state (someone approved or
+// rejected it, or it's mid-process). For a bulk run that's effectively success, not a failure.
+function isAlreadyResolved(message: string): boolean {
+  return /already (approved|rejected|cancelled|processed|being processed)/i.test(message)
+}
+
 function MobileSkeletonCard() {
   return (
     <div className="p-4 border-b border-base-content/6 space-y-2.5">
@@ -135,6 +141,11 @@ export function AdminApprovals() {
   const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
   const [rejectingIds, setRejectingIds] = useState<Set<string>>(new Set())
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+  const [isBulkApproving, setIsBulkApproving] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
+  // During "Approve all": ids still in line. The one being written to Loyverse is NOT here
+  // (it shows "Processing…"); everything still queued shows "Waiting…".
+  const [queuedIds, setQueuedIds] = useState<Set<string>>(new Set())
   const [bgTick, setBgTick] = useState(0)
   const [bgTransferTick, setBgTransferTick] = useState(0)
   const backgroundIds = useMemo(() => readStoredIds(), [bgTick])
@@ -285,7 +296,10 @@ export function AdminApprovals() {
     }
   }
 
-  const handleApprove = async (id: string) => {
+  // Core single-request approval shared by the per-row button and "Approve all".
+  // Manages row state + background tracking, then rethrows so the caller decides how to surface
+  // the outcome (a toast for one click, a running tally for a bulk run).
+  const approveOne = async (id: string) => {
     writeStoredId(id)
     setBgTick((t) => t + 1)
     setApprovingIds((prev) => new Set(prev).add(id))
@@ -294,6 +308,22 @@ export function AdminApprovals() {
       deleteStoredId(id)
       setBgTick((t) => t + 1)
       setDoneIds((prev) => new Set(prev).add(id))
+    } catch (e) {
+      // Keep the "Processing…" marker only on a real timeout (server may still finish it).
+      const msg = e instanceof Error ? e.message : ''
+      if (!msg.includes('timed out')) {
+        deleteStoredId(id)
+        setBgTick((t) => t + 1)
+      }
+      throw e
+    } finally {
+      setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveOne(id)
       showToast({ message: 'Approved. Stock updated in Loyverse.', durationMs: 6000 })
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to approve request.'
@@ -302,14 +332,74 @@ export function AdminApprovals() {
           message: 'Approval submitted. Server is processing — will update in ~1 minute.',
           durationMs: 15000,
         })
+      } else if (isAlreadyResolved(msg)) {
+        // Not a failure — it already left the queue. Reconcile the list quietly.
+        showToast({ message: 'Already approved.', durationMs: 4000 })
+        void refetch('pending')
       } else {
-        deleteStoredId(id)
-        setBgTick((t) => t + 1)
         showToast({ message: `Approve failed: ${msg}`, durationMs: 8000, variant: 'error' })
       }
-    } finally {
-      setApprovingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }
+  }
+
+  // Approve every pending request ONE AT A TIME (never in parallel). Firing them all at once is
+  // exactly what trips Loyverse's rate limit (429); a paced sequential run avoids it entirely.
+  const handleApproveAll = async () => {
+    if (isBulkApproving) return
+    const targets = stockRequests.filter(
+      (r) => !approvingIds.has(r.id) && !doneIds.has(r.id) && !backgroundIds.has(r.id),
+    )
+    if (targets.length === 0) return
+
+    setIsBulkApproving(true)
+    setBulkProgress({ done: 0, total: targets.length })
+    setQueuedIds(new Set(targets.map((t) => t.id)))
+
+    let approved = 0
+    const failures: Array<{ name: string; reason: string }> = []
+
+    for (const req of targets) {
+      // This row is up next — pull it out of the waiting line so it flips to "Processing…".
+      setQueuedIds((prev) => { const next = new Set(prev); next.delete(req.id); return next })
+      try {
+        await approveOne(req.id)
+        approved++
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Failed'
+        // "already resolved" = something already approved it; "timed out" = server still finishing.
+        // Neither is a real failure the operator needs to retry.
+        if (isAlreadyResolved(msg) || msg.includes('timed out')) {
+          approved++
+        } else {
+          failures.push({ name: req.itemName, reason: msg })
+        }
+      } finally {
+        setBulkProgress((p) => (p ? { done: p.done + 1, total: p.total } : p))
+      }
+      // Small gap between writes keeps us comfortably under Loyverse's burst limit.
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+
+    setIsBulkApproving(false)
+    setBulkProgress(null)
+    setQueuedIds(new Set())
+
+    if (failures.length === 0) {
+      showToast({
+        message: `All ${approved} request${approved === 1 ? '' : 's'} approved. Stock updated in Loyverse.`,
+        durationMs: 7000,
+      })
+    } else {
+      const detail = failures.slice(0, 3).map((f) => `${f.name} — ${f.reason}`).join('; ')
+      const more = failures.length > 3 ? ` (+${failures.length - 3} more)` : ''
+      showToast({
+        message: `${approved} approved, ${failures.length} failed: ${detail}${more}`,
+        durationMs: 12000,
+        variant: 'error',
+      })
+    }
+
+    void refetch('pending')
   }
 
   const handleReject = async (id: string) => {
@@ -331,7 +421,8 @@ export function AdminApprovals() {
     const isRejecting = rejectingIds.has(req.id)
     const isDone = doneIds.has(req.id)
     const isBackground = backgroundIds.has(req.id)
-    const isDisabled = isApproving || isRejecting || isDone || isBackground
+    const isWaiting = queuedIds.has(req.id)
+    const isDisabled = isApproving || isRejecting || isDone || isBackground || isBulkApproving
 
     if (isBackground) {
       return (
@@ -340,6 +431,18 @@ export function AdminApprovals() {
             <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
           </svg>
           Processing…
+        </span>
+      )
+    }
+
+    if (isWaiting) {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-base-content/35">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          Waiting…
         </span>
       )
     }
@@ -393,20 +496,46 @@ export function AdminApprovals() {
             <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Approvals</h1>
             <p className="text-sm text-base-content/45 mt-1">Review pending requests from operators</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 shrink-0"
-            onClick={() => {
-              if (activeTab === 'stock') { refetch('pending') }
-              else { void fetchTransfers('pending'); void refreshLiveStocks().catch(() => {}) }
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-            </svg>
-            Refresh
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {activeTab === 'stock' && stockRequests.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm bg-success/10 text-success border border-success/25 hover:bg-success/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isBulkApproving || isLoading}
+                onClick={() => void handleApproveAll()}
+                title="Approve every pending request, one at a time"
+              >
+                {isBulkApproving ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs" />
+                    Approving {bulkProgress?.done ?? 0}/{bulkProgress?.total ?? 0}…
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Approve all ({stockRequests.length})
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost text-base-content/50 hover:text-base-content border border-base-content/10 hover:border-base-content/20 disabled:opacity-50"
+              disabled={isBulkApproving}
+              onClick={() => {
+                if (activeTab === 'stock') { refetch('pending') }
+                else { void fetchTransfers('pending'); void refreshLiveStocks().catch(() => {}) }
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </header>
 
         {/* Tabs */}
@@ -507,7 +636,8 @@ export function AdminApprovals() {
                     const isRejecting = rejectingIds.has(req.id)
                     const isDone = doneIds.has(req.id)
                     const isBackground = backgroundIds.has(req.id)
-                    const isDisabled = isApproving || isRejecting || isDone || isBackground
+                    const isWaiting = queuedIds.has(req.id)
+                    const isDisabled = isApproving || isRejecting || isDone || isBackground || isBulkApproving
 
                     return (
                       <tr
@@ -531,6 +661,14 @@ export function AdminApprovals() {
                                 <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
                               </svg>
                               Processing…
+                            </span>
+                          ) : isWaiting ? (
+                            <span className="flex items-center gap-1.5 text-xs text-base-content/35">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                              </svg>
+                              Waiting…
                             </span>
                           ) : (
                             <div className="flex items-center gap-2">
