@@ -32,7 +32,7 @@ export function AddItem() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
-  const { categories, categoriesLoading, nextSku, nextSkuLoading, createItem } = useCreateItem()
+  const { categories, categoriesLoading, nextSku, nextSkuLoading, createItem, refetchNextSku } = useCreateItem()
 
   const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -54,8 +54,8 @@ export function AddItem() {
   // immediately (like the Loyverse Back Office). Skipped once the operator types their own.
   // Display-only: an untouched field is sent blank on submit so Loyverse assigns the real SKU.
   useEffect(() => {
-    if (nextSku && !skuEdited && !sku) setSku(nextSku)
-  }, [nextSku, skuEdited, sku])
+    if (nextSku && !skuEdited) setSku(nextSku)
+  }, [nextSku, skuEdited])
 
   // Seed store rows once stores load (available by default, like Loyverse).
   useEffect(() => {
@@ -86,6 +86,29 @@ export function AddItem() {
       ...prev,
       [storeId]: { ...(prev[storeId] ?? { available: true, price: '' }), [field]: value },
     }))
+  }
+
+  // Clear the form back to its initial state so the operator can immediately add another item
+  // without leaving the page. The SKU preview is advanced separately via refetchNextSku().
+  const resetForm = () => {
+    setName('')
+    setCategoryId('')
+    setDescription('')
+    setSoldByWeight(false)
+    setPrice('')
+    setCost('')
+    setSku('')
+    setSkuEdited(false)
+    setBarcode('')
+    setTrackStock(false)
+    setAllStores(true)
+    setStoreRows(() => {
+      const next: Record<string, StoreRow> = {}
+      for (const s of stores) next[s.id] = { available: true, price: '' }
+      return next
+    })
+    setColor('GREY')
+    setShape('SQUARE')
   }
 
   const handleSubmit = async () => {
@@ -139,7 +162,9 @@ export function AddItem() {
           : `"${res.itemName}" created in Loyverse.`,
         durationMs: 6000,
       })
-      navigate(ROUTES.PRICE_LIST)
+      // Stay on the Add item page and clear the form so the operator can add another right away.
+      resetForm()
+      void refetchNextSku()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Create failed'
       showToast({ message: `Failed to create item. ${msg}`, durationMs: 7000, variant: 'error' })
