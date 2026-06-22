@@ -235,7 +235,7 @@ export function DeleteItem() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-error/20 bg-error/5 text-error hover:bg-error/10 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-error/20 bg-error/8 text-error hover:bg-error/15 transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
                       disabled={deletingId === p.id}
                       onClick={() => setConfirmTarget(p)}
                     >
@@ -261,12 +261,12 @@ export function DeleteItem() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-base-content/8 bg-base-content/3">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-[40%]">Product</th>
+                  <th className="sticky left-0 z-20 bg-base-100 py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-60 border-r border-base-content/8">Product</th>
                   <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-24">SKU</th>
                   {stores.map((s) => (
-                    <th key={s.id} className="py-3 px-4 text-center text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">{s.name}</th>
+                    <th key={s.id} className="py-3 px-3 text-center text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">{s.name}</th>
                   ))}
-                  <th className="py-3 px-4 w-px" />
+                  <th className="sticky right-0 z-20 bg-base-100 py-3 px-3 w-[80px] text-right text-xs font-medium text-base-content/45 tracking-wide border-l border-base-content/8">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,16 +280,16 @@ export function DeleteItem() {
                   </tr>
                 ) : (
                   paginated.map((p, index) => (
-                    <tr key={p.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 20}ms` }}>
-                      <td className="py-3.5 px-4 font-medium text-base-content break-words">{p.name}</td>
+                    <tr key={p.id} className="group border-b border-base-content/6 hover:bg-base-200 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 20}ms` }}>
+                      <td className="sticky left-0 z-10 bg-base-100 group-hover:bg-base-200 py-3.5 px-4 font-medium text-base-content break-words w-60 border-r border-base-content/8 transition-colors duration-100">{p.name}</td>
                       <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{p.sku || '—'}</td>
                       {p.stocks.map((s) => (
-                        <td key={s.storeId} className="py-3.5 px-4 text-center tabular text-sm text-base-content/50">{s.stock}</td>
+                        <td key={s.storeId} className="py-3.5 px-3 text-center tabular text-sm text-base-content/50">{s.stock}</td>
                       ))}
-                      <td className="py-3.5 px-3">
+                      <td className="sticky right-0 z-10 bg-base-100 group-hover:bg-base-200 py-3.5 px-3 border-l border-base-content/8 transition-colors duration-100">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-error/80 hover:text-error hover:bg-error/8 border border-transparent hover:border-error/20 transition-colors duration-150 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-error bg-error/8 hover:bg-error/15 border border-error/20 transition-all duration-150 active:scale-[0.97] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                           disabled={deletingId === p.id}
                           onClick={() => setConfirmTarget(p)}
                           title="Delete item"
