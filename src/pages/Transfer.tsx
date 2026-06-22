@@ -321,7 +321,7 @@ export function Transfer() {
     setCurrentPage(1)
   }
 
-  const colCount = 2 + stores.length
+  const colCount = 3 + stores.length
 
   return (
     <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
@@ -505,7 +505,7 @@ export function Transfer() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none text-primary border-primary/20 bg-primary/5 hover:bg-primary/10"
+                      className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none text-primary border-primary/20 bg-primary/8 hover:bg-primary/15"
                       disabled={isServerLoading || requiresReset}
                       onClick={() => setTransferTarget(p)}
                     >
@@ -535,14 +535,14 @@ export function Transfer() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-base-content/8 bg-base-content/3">
-                  <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-[45%]">Product</th>
+                  <th className="sticky left-0 z-20 bg-base-100 py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-60 border-r border-base-content/8">Product</th>
                   <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-24">SKU</th>
                   {stores.map((s) => (
-                    <th key={s.id} className="py-3 px-4 text-center text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">
+                    <th key={s.id} className="py-3 px-3 text-center text-xs font-medium text-base-content/45 tracking-wide whitespace-nowrap">
                       {s.name}
                     </th>
                   ))}
-                  <th className="py-3 px-4 w-px" />
+                  <th className="sticky right-0 z-20 bg-base-100 py-3 px-3 w-[88px] text-right text-xs font-medium text-base-content/45 tracking-wide border-l border-base-content/8">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -558,22 +558,22 @@ export function Transfer() {
                   paginated.map((p, index) => (
                     <tr
                       key={p.id}
-                      className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row"
+                      className="group border-b border-base-content/6 hover:bg-base-200 transition-colors duration-100 animate-row"
                       style={{ animationDelay: `${index * 20}ms` }}
                     >
-                      <td className="py-3.5 px-4 font-medium text-base-content">
+                      <td className="sticky left-0 z-10 bg-base-100 group-hover:bg-base-200 py-3.5 px-4 font-medium text-base-content w-60 border-r border-base-content/8 transition-colors duration-100">
                         <p className="break-words">{p.name}</p>
                       </td>
                       <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{p.sku}</td>
                       {p.stocks.map((s) => (
-                        <td key={s.storeId} className="py-3.5 px-4 text-center">
+                        <td key={s.storeId} className="py-3.5 px-3 text-center">
                           <StockBadge count={s.stock} />
                         </td>
                       ))}
-                      <td className="py-3.5 px-3">
+                      <td className="sticky right-0 z-10 bg-base-100 group-hover:bg-base-200 py-3.5 px-3 border-l border-base-content/8 transition-colors duration-100">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-base-content/45 hover:text-primary hover:bg-primary/8 border border-transparent hover:border-primary/20 transition-colors duration-150 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-primary bg-primary/8 hover:bg-primary/15 border border-primary/20 transition-all duration-150 active:scale-[0.97] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                           disabled={isServerLoading || requiresReset}
                           onClick={() => setTransferTarget(p)}
                           title="Request stock transfer"
