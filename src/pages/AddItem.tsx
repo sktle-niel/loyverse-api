@@ -28,11 +28,21 @@ const PRICE_RE = /^\d+(\.\d{1,2})?$/
 
 type StoreRow = { available: boolean; price: string }
 
+/** An item create attempt in this session — shown in the "Recently added" panel. */
+type RecentItem = {
+  id: string
+  name: string
+  status: 'success' | 'failed'
+  sku?: string
+  error?: string
+  at: number
+}
+
 export function AddItem() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
-  const { categories, categoriesLoading, nextSku, nextSkuLoading, createItem, refetchNextSku } = useCreateItem()
+  const { categories, categoriesLoading, createItem } = useCreateItem()
 
   const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -40,8 +50,6 @@ export function AddItem() {
   const [soldByWeight, setSoldByWeight] = useState(false)
   const [price, setPrice] = useState('')
   const [cost, setCost] = useState('')
-  const [sku, setSku] = useState('')
-  const [skuEdited, setSkuEdited] = useState(false)
   const [barcode, setBarcode] = useState('')
   const [trackStock, setTrackStock] = useState(false)
   const [allStores, setAllStores] = useState(true)
@@ -49,13 +57,7 @@ export function AddItem() {
   const [color, setColor] = useState('GREY')
   const [shape, setShape] = useState('SQUARE')
   const [saving, setSaving] = useState(false)
-
-  // Pre-fill the SKU field with Loyverse's next auto-SKU as soon as it loads, so it shows
-  // immediately (like the Loyverse Back Office). Skipped once the operator types their own.
-  // Display-only: an untouched field is sent blank on submit so Loyverse assigns the real SKU.
-  useEffect(() => {
-    if (nextSku && !skuEdited) setSku(nextSku)
-  }, [nextSku, skuEdited])
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([])
 
   // Seed store rows once stores load (available by default, like Loyverse).
   useEffect(() => {
@@ -88,8 +90,17 @@ export function AddItem() {
     }))
   }
 
+  const pushRecent = (entry: Omit<RecentItem, 'id' | 'at'>) => {
+    setRecentItems((prev) =>
+      [
+        { ...entry, id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, at: Date.now() },
+        ...prev,
+      ].slice(0, 20),
+    )
+  }
+
   // Clear the form back to its initial state so the operator can immediately add another item
-  // without leaving the page. The SKU preview is advanced separately via refetchNextSku().
+  // without leaving the page.
   const resetForm = () => {
     setName('')
     setCategoryId('')
@@ -97,8 +108,6 @@ export function AddItem() {
     setSoldByWeight(false)
     setPrice('')
     setCost('')
-    setSku('')
-    setSkuEdited(false)
     setBarcode('')
     setTrackStock(false)
     setAllStores(true)
@@ -132,16 +141,15 @@ export function AddItem() {
       }
     }
 
+    const itemName = name.trim()
     const body: CreateItemBody = {
-      name: name.trim(),
+      name: itemName,
       categoryId: categoryId || null,
       description: description.trim() || undefined,
       soldByWeight,
       trackStock,
       cost: cost.trim() ? Number(cost) : 0,
-      // Untouched field = the previewed SKU → send blank so Loyverse assigns the real one (no dups).
-      // Only send a SKU when the operator deliberately typed a custom one.
-      sku: skuEdited && sku.trim() ? sku.trim() : undefined,
+      // SKU is intentionally omitted — Loyverse assigns it on create and returns it in the response.
       barcode: barcode.trim() || undefined,
       defaultPrice: price.trim() ? Number(price) : null,
       color,
@@ -156,6 +164,7 @@ export function AddItem() {
     setSaving(true)
     try {
       const res = await createItem(body)
+      pushRecent({ name: res.itemName || itemName, status: 'success', sku: res.sku })
       showToast({
         message: res.sku
           ? `"${res.itemName}" created in Loyverse · SKU ${res.sku}`
@@ -164,9 +173,9 @@ export function AddItem() {
       })
       // Stay on the Add item page and clear the form so the operator can add another right away.
       resetForm()
-      void refetchNextSku()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Create failed'
+      pushRecent({ name: itemName, status: 'failed', error: msg })
       showToast({ message: `Failed to create item. ${msg}`, durationMs: 7000, variant: 'error' })
     } finally {
       setSaving(false)
@@ -178,213 +187,279 @@ export function AddItem() {
   const labelClass = 'block text-xs font-medium text-base-content/45 mb-1.5'
   const cardClass = 'rounded-xl border border-base-content/8 bg-base-100 p-5 sm:p-6'
 
+  const successCount = recentItems.filter((r) => r.status === 'success').length
+
   return (
     <main className="min-h-screen bg-base-200 p-4 md:p-8 page-enter">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <header className="mb-6">
           <p className="text-xs font-medium text-base-content/35 uppercase tracking-widest mb-1">Operator</p>
           <h1 className="text-2xl sm:text-3xl font-semibold text-base-content tracking-tight">Add item</h1>
           <p className="text-sm text-base-content/45 mt-1">Create a new product — saved directly to Loyverse.</p>
         </header>
 
-        <div className="space-y-5">
-          {/* Item details */}
-          <section className={cardClass}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-1">
-                <label className={labelClass}>Name <span className="text-error">*</span></label>
-                <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_21rem] gap-5 items-start">
+          {/* LEFT — form */}
+          <div className="space-y-5">
+            {/* Item details */}
+            <section className={cardClass}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-1">
+                  <label className={labelClass}>Name <span className="text-error">*</span></label>
+                  <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className={labelClass}>Category</label>
+                  <select className={`${inputClass} appearance-none`} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={categoriesLoading}>
+                    <option value="">No category</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="sm:col-span-1">
-                <label className={labelClass}>Category</label>
-                <select className={`${inputClass} appearance-none`} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={categoriesLoading}>
-                  <option value="">No category</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div className="mt-4">
-              <label className={labelClass}>Description</label>
-              <textarea className={`${inputClass} min-h-[72px] resize-y`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
-            </div>
+              <div className="mt-4">
+                <label className={labelClass}>Description</label>
+                <textarea className={`${inputClass} min-h-[72px] resize-y`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+              </div>
 
-            <div className="mt-4">
-              <label className={labelClass}>Sold by</label>
-              <div className="flex items-center gap-5">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-base-content/80">
-                  <input type="radio" className="radio radio-sm radio-primary" checked={!soldByWeight} onChange={() => setSoldByWeight(false)} />
-                  Each
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-base-content/80">
-                  <input type="radio" className="radio radio-sm radio-primary" checked={soldByWeight} onChange={() => setSoldByWeight(true)} />
-                  Weight / Volume
-                </label>
+              <div className="mt-4">
+                <label className={labelClass}>Sold by</label>
+                <div className="flex items-center gap-5">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-base-content/80">
+                    <input type="radio" className="radio radio-sm radio-primary" checked={!soldByWeight} onChange={() => setSoldByWeight(false)} />
+                    Each
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-base-content/80">
+                    <input type="radio" className="radio radio-sm radio-primary" checked={soldByWeight} onChange={() => setSoldByWeight(true)} />
+                    Weight / Volume
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className={labelClass}>Price</label>
-                <input className={inputClass} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Leave blank for price upon sale" />
-                <p className="text-[11px] text-base-content/35 mt-1">Default selling price. Per-store prices below override this.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className={labelClass}>Price</label>
+                  <input className={inputClass} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Leave blank for price upon sale" />
+                  <p className="text-[11px] text-base-content/35 mt-1">Default selling price. Per-store prices below override this.</p>
+                </div>
+                <div>
+                  <label className={labelClass}>Cost</label>
+                  <input className={inputClass} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0.00" />
+                </div>
               </div>
-              <div>
-                <label className={labelClass}>Cost</label>
-                <input className={inputClass} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0.00" />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className={labelClass}>SKU</label>
-                <input
-                  className={inputClass}
-                  value={sku}
-                  onChange={(e) => { setSku(e.target.value); setSkuEdited(true) }}
-                  placeholder={nextSkuLoading ? 'Loading next SKU…' : 'Auto-assigned by Loyverse'}
-                />
-                <p className="text-[11px] text-base-content/35 mt-1">Auto-assigned by Loyverse to avoid duplicate SKUs. Leave as-is unless you need a custom one.</p>
-              </div>
-              <div>
+              <div className="mt-4">
                 <label className={labelClass}>Barcode</label>
                 <input className={inputClass} value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Optional" />
+                <p className="text-[11px] text-base-content/35 mt-1">SKU is auto-assigned by Loyverse on save and shown under “Recently added”.</p>
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Inventory */}
-          <section className={cardClass}>
-            <h2 className="text-sm font-semibold text-base-content mb-4">Inventory</h2>
-            <label className="flex items-center justify-between gap-3 cursor-pointer">
-              <span className="text-sm text-base-content/80">Track stock</span>
-              <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} />
-            </label>
-          </section>
+            {/* Inventory */}
+            <section className={cardClass}>
+              <h2 className="text-sm font-semibold text-base-content mb-4">Inventory</h2>
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <span className="text-sm text-base-content/80">Track stock</span>
+                <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} />
+              </label>
+            </section>
 
-          {/* Stores */}
-          <section className={cardClass}>
-            <h2 className="text-sm font-semibold text-base-content mb-4">Stores</h2>
-            <label className="flex items-center gap-2.5 cursor-pointer mb-3">
-              <input type="checkbox" className="checkbox checkbox-sm checkbox-primary" checked={allStores && allChecked} onChange={(e) => toggleAllStores(e.target.checked)} />
-              <span className="text-sm text-base-content/80">Available for sale in all stores</span>
-            </label>
+            {/* Stores */}
+            <section className={cardClass}>
+              <h2 className="text-sm font-semibold text-base-content mb-4">Stores</h2>
+              <label className="flex items-center gap-2.5 cursor-pointer mb-3">
+                <input type="checkbox" className="checkbox checkbox-sm checkbox-primary" checked={allStores && allChecked} onChange={(e) => toggleAllStores(e.target.checked)} />
+                <span className="text-sm text-base-content/80">Available for sale in all stores</span>
+              </label>
 
-            {storesLoading ? (
-              <p className="text-xs text-base-content/40 flex items-center gap-1.5">
-                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-                </svg>
-                Loading stores…
-              </p>
-            ) : storesError || stores.length === 0 ? (
-              <div className="rounded-lg border border-base-content/10 bg-base-content/3 px-4 py-4 text-center">
-                <p className="text-xs text-base-content/55">{storesError ? `Couldn't load stores. ${storesError}` : 'No stores found.'}</p>
-                <button
-                  type="button"
-                  onClick={() => void refetchStores()}
-                  className="btn btn-xs btn-ghost mt-2 text-primary border border-primary/25 hover:bg-primary/10"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-base-content/8 divide-y divide-base-content/6 overflow-hidden">
-                <div className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2 bg-base-content/3 text-[11px] font-medium text-base-content/45 uppercase tracking-wide">
-                  <span>Avail.</span><span>Store</span><span className="text-right">Price</span>
+              {storesLoading ? (
+                <p className="text-xs text-base-content/40 flex items-center gap-1.5">
+                  <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                  </svg>
+                  Loading stores…
+                </p>
+              ) : storesError || stores.length === 0 ? (
+                <div className="rounded-lg border border-base-content/10 bg-base-content/3 px-4 py-4 text-center">
+                  <p className="text-xs text-base-content/55">{storesError ? `Couldn't load stores. ${storesError}` : 'No stores found.'}</p>
+                  <button
+                    type="button"
+                    onClick={() => void refetchStores()}
+                    className="btn btn-xs btn-ghost mt-2 text-primary border border-primary/25 hover:bg-primary/10"
+                  >
+                    Retry
+                  </button>
                 </div>
-                {stores.map((s) => {
-                  const row = storeRows[s.id] ?? { available: true, price: '' }
-                  return (
-                    <div key={s.id} className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2.5">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-sm checkbox-primary"
-                        checked={row.available}
-                        onChange={(e) => setStoreField(s.id, 'available', e.target.checked)}
-                      />
-                      <span className="text-sm text-base-content/80 break-words">{s.name}</span>
-                      <input
-                        inputMode="decimal"
-                        className="rounded-md border border-base-content/12 bg-base-100 px-2.5 py-1.5 text-sm text-right tabular outline-none focus:border-primary/60"
-                        placeholder="—"
-                        value={row.price}
-                        onChange={(e) => setStoreField(s.id, 'price', e.target.value)}
-                      />
-                    </div>
-                  )
-                })}
+              ) : (
+                <div className="rounded-lg border border-base-content/8 divide-y divide-base-content/6 overflow-hidden">
+                  <div className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2 bg-base-content/3 text-[11px] font-medium text-base-content/45 uppercase tracking-wide">
+                    <span>Avail.</span><span>Store</span><span className="text-right">Price</span>
+                  </div>
+                  {stores.map((s) => {
+                    const row = storeRows[s.id] ?? { available: true, price: '' }
+                    return (
+                      <div key={s.id} className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm checkbox-primary"
+                          checked={row.available}
+                          onChange={(e) => setStoreField(s.id, 'available', e.target.checked)}
+                        />
+                        <span className="text-sm text-base-content/80 break-words">{s.name}</span>
+                        <input
+                          inputMode="decimal"
+                          className="rounded-md border border-base-content/12 bg-base-100 px-2.5 py-1.5 text-sm text-right tabular outline-none focus:border-primary/60"
+                          placeholder="—"
+                          value={row.price}
+                          onChange={(e) => setStoreField(s.id, 'price', e.target.value)}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Representation on POS */}
+            <section className={cardClass}>
+              <h2 className="text-sm font-semibold text-base-content mb-4">Representation on POS</h2>
+              <label className={labelClass}>Color</label>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setColor(c.value)}
+                    className={`w-9 h-9 rounded-lg ${c.className} flex items-center justify-center transition-transform ${color === c.value ? 'ring-2 ring-offset-2 ring-base-content/40 ring-offset-base-100 scale-105' : 'hover:scale-105'}`}
+                    aria-label={c.value}
+                  >
+                    {color === c.value && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
               </div>
-            )}
-          </section>
+              <label className={labelClass}>Shape</label>
+              <div className="flex flex-wrap gap-2">
+                {SHAPES.map((sh) => (
+                  <button
+                    key={sh.value}
+                    type="button"
+                    onClick={() => setShape(sh.value)}
+                    className={`w-9 h-9 flex items-center justify-center border-2 transition-colors ${sh.radius} ${shape === sh.value ? 'border-primary text-primary' : 'border-base-content/20 text-base-content/30 hover:border-base-content/40'}`}
+                    aria-label={sh.value}
+                    title={sh.value}
+                  >
+                    {shape === sh.value && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={sh.value === 'HEXAGON' ? '-rotate-12' : ''}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
 
-          {/* Representation on POS */}
-          <section className={cardClass}>
-            <h2 className="text-sm font-semibold text-base-content mb-4">Representation on POS</h2>
-            <label className={labelClass}>Color</label>
-            <div className="flex flex-wrap gap-2 mb-5">
-              {COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setColor(c.value)}
-                  className={`w-9 h-9 rounded-lg ${c.className} flex items-center justify-center transition-transform ${color === c.value ? 'ring-2 ring-offset-2 ring-base-content/40 ring-offset-base-100 scale-105' : 'hover:scale-105'}`}
-                  aria-label={c.value}
-                >
-                  {color === c.value && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pb-4">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm text-base-content/60 hover:text-base-content border border-base-content/10"
+                disabled={saving}
+                onClick={() => navigate(ROUTES.PRICE_LIST)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm min-w-[7rem]"
+                disabled={saving}
+                onClick={() => void handleSubmit()}
+              >
+                {saving ? (
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+                  </svg>
+                ) : 'Save item'}
+              </button>
             </div>
-            <label className={labelClass}>Shape</label>
-            <div className="flex flex-wrap gap-2">
-              {SHAPES.map((sh) => (
-                <button
-                  key={sh.value}
-                  type="button"
-                  onClick={() => setShape(sh.value)}
-                  className={`w-9 h-9 flex items-center justify-center border-2 transition-colors ${sh.radius} ${shape === sh.value ? 'border-primary text-primary' : 'border-base-content/20 text-base-content/30 hover:border-base-content/40'}`}
-                  aria-label={sh.value}
-                  title={sh.value}
-                >
-                  {shape === sh.value && (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={sh.value === 'HEXAGON' ? '-rotate-12' : ''}>
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-4">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm text-base-content/60 hover:text-base-content border border-base-content/10"
-              disabled={saving}
-              onClick={() => navigate(ROUTES.PRICE_LIST)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm min-w-[7rem]"
-              disabled={saving}
-              onClick={() => void handleSubmit()}
-            >
-              {saving ? (
-                <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
-                </svg>
-              ) : 'Save item'}
-            </button>
           </div>
+
+          {/* RIGHT — recently added */}
+          <aside className="lg:sticky lg:top-8">
+            <section className={cardClass}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-base-content">Recently added</h2>
+                {recentItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setRecentItems([])}
+                    className="text-[11px] text-base-content/40 hover:text-base-content/70 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {successCount > 0 && (
+                <p className="text-[11px] text-base-content/40 mb-3">
+                  {successCount} item{successCount === 1 ? '' : 's'} added this session
+                </p>
+              )}
+
+              {recentItems.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-base-content/12 px-4 py-10 text-center">
+                  <p className="text-xs text-base-content/45">No items yet.</p>
+                  <p className="text-[11px] text-base-content/35 mt-1">Items you add appear here with the SKU Loyverse assigned.</p>
+                </div>
+              ) : (
+                <ul className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
+                  {recentItems.map((it) => (
+                    <li
+                      key={it.id}
+                      className="rounded-lg border border-base-content/8 bg-base-100 px-3 py-2.5 flex items-start gap-2.5"
+                    >
+                      {it.status === 'success' ? (
+                        <span className="mt-0.5 w-5 h-5 rounded-full bg-success/15 text-success flex items-center justify-center shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </span>
+                      ) : (
+                        <span className="mt-0.5 w-5 h-5 rounded-full bg-error/15 text-error flex items-center justify-center shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-base-content/90 font-medium truncate">{it.name}</p>
+                        {it.status === 'success' ? (
+                          <div className="flex items-center flex-wrap gap-2 mt-1">
+                            <span className="text-[11px] font-mono text-base-content/60">SKU {it.sku || '—'}</span>
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-success bg-success/10 px-1.5 py-0.5 rounded">
+                              Success
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="mt-1">
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-error bg-error/10 px-1.5 py-0.5 rounded">
+                              Failed
+                            </span>
+                            {it.error && <p className="text-[11px] text-error/80 mt-1 break-words">{it.error}</p>}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </aside>
         </div>
       </div>
     </main>
