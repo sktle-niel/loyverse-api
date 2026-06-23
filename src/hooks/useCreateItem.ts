@@ -5,14 +5,11 @@ import type {
   Category,
   CreateItemBody,
   CreateItemResponse,
-  NextSkuResponse,
 } from '../api/types'
 
 export function useCreateItem() {
   const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [nextSku, setNextSku] = useState('')
-  const [nextSkuLoading, setNextSkuLoading] = useState(true)
 
   useEffect(() => {
     let active = true
@@ -29,27 +26,11 @@ export function useCreateItem() {
     return () => { active = false }
   }, [])
 
-  // Loyverse-style: preview the SKU that will be auto-assigned so it shows in the field immediately.
-  // Exposed as refetchNextSku so the form can advance the preview after creating an item.
-  const fetchNextSku = useCallback(async () => {
-    setNextSkuLoading(true)
-    try {
-      const res = await apiFetchJson<NextSkuResponse>('/items/next-sku')
-      setNextSku(res.sku ?? '')
-    } catch {
-      setNextSku('')
-    } finally {
-      setNextSkuLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchNextSku()
-  }, [fetchNextSku])
-
+  // SKU is no longer entered or previewed in the form — Loyverse assigns it on create and echoes
+  // it back in the response (shown in the "Recently added" panel).
   const createItem = useCallback(async (body: CreateItemBody): Promise<CreateItemResponse> => {
     return apiPostJson<CreateItemResponse>('/items', body, { timeoutMs: 30_000 })
   }, [])
 
-  return { categories, categoriesLoading, nextSku, nextSkuLoading, createItem, refetchNextSku: fetchNextSku }
+  return { categories, categoriesLoading, createItem }
 }
