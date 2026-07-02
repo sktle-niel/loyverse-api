@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
-import type { ExportItemsResponse, Product, StoreInfo } from '../api/types'
+import { useEffect, useMemo, useState } from 'react'
+import type { ExportItemsResponse, ItemPrice, Product, StoreInfo } from '../api/types'
 import { apiFetchJson } from '../api/client'
 import { useProducts } from '../hooks/useProducts'
 import { useProductSearch } from '../hooks/useProductSearch'
+import { useItemPrices } from '../hooks/useItemPrices'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { exportItemsToExcel } from '../utils/exportItems'
+import { PriceModal, ListIcon } from '../components/PriceModal'
 
 const ITEMS_PER_PAGE = 10
 
@@ -17,7 +19,7 @@ type ProductDraft = {
 function SkeletonRow() {
   return (
     <tr className="border-b border-base-content/6">
-      {[42, 18, 26, 22, 10].map((w, i) => (
+      {[36, 16, 14, 24, 20, 10].map((w, i) => (
         <td key={i} className="py-3.5 px-4">
           <div className="h-3 rounded bg-base-content/8 animate-pulse" style={{ width: `${w}%` }} />
         </td>
@@ -53,6 +55,28 @@ export function Inventory() {
   const { results: products, isSearching } = useProductSearch(query, allProducts)
   const isLoading = productsLoading
   const isSearchActive = query.trim().length > 0
+
+  // Item prices power the per-row "View / edit" price modal (moved here from the old
+  // Price List page). Loaded in the background; a row's button enables once its price is ready.
+  const { items: priceItems, isLoading: pricesLoading, updateStorePrice, fetchHistory } = useItemPrices()
+  const priceById = useMemo(() => {
+    const m = new Map<string, ItemPrice>()
+    for (const it of priceItems) m.set(it.id, it)
+    return m
+  }, [priceItems])
+  const [selectedItem, setSelectedItem] = useState<ItemPrice | null>(null)
+
+  // Keep an open modal in sync with refreshed price data.
+  useEffect(() => {
+    if (!selectedItem) return
+    const fresh = priceItems.find((it) => it.id === selectedItem.id)
+    if (fresh && fresh !== selectedItem) setSelectedItem(fresh)
+  }, [priceItems, selectedItem])
+
+  const openPrice = (productId: string) => {
+    const ip = priceById.get(productId)
+    if (ip) setSelectedItem(ip)
+  }
 
   useEffect(() => { setCurrentPage(1) }, [query, products.length])
 
@@ -292,6 +316,14 @@ export function Inventory() {
                       <p className="text-xs text-base-content/40 mt-0.5">Branch: {branchName || draft.storeId}</p>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => openPrice(p.id)}
+                    disabled={!priceById.has(p.id)}
+                    className="btn btn-sm btn-ghost w-full justify-center text-primary border border-primary/25 hover:bg-primary/10 gap-1.5 mb-3 disabled:opacity-40"
+                  >
+                    <ListIcon /> View / edit prices
+                  </button>
                   <div className="flex flex-col gap-2">
                     <select
                       className="select select-sm select-bordered bg-base-100 w-full text-sm"
@@ -366,7 +398,8 @@ export function Inventory() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-base-content/8 bg-base-content/3">
-                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-[40%]">Product</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-[32%]">Product</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-28">Price</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-24">SKU</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide">Branch</th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-base-content/45 tracking-wide w-36 sm:w-44">Add qty</th>
@@ -378,7 +411,7 @@ export function Inventory() {
                     Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
                   ) : products.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-16 text-center text-sm text-base-content/40">
+                      <td colSpan={6} className="py-16 text-center text-sm text-base-content/40">
                         {isSearchActive ? 'No products match your search.' : 'No products loaded.'}
                       </td>
                     </tr>
@@ -396,6 +429,17 @@ export function Inventory() {
                         >
                           <td className="py-3.5 px-4">
                             <p className="font-medium text-base-content break-words">{p.name}</p>
+                          </td>
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => openPrice(p.id)}
+                              disabled={!priceById.has(p.id)}
+                              className="btn btn-xs btn-ghost text-primary hover:bg-primary/10 border border-primary/25 gap-1.5 disabled:opacity-40"
+                              title={priceById.has(p.id) ? 'View / edit price' : (pricesLoading ? 'Loading prices…' : 'No price data')}
+                            >
+                              <ListIcon /> View / edit
+                            </button>
                           </td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular">{p.sku}</td>
                           <td className="py-3.5 px-4">
@@ -469,6 +513,17 @@ export function Inventory() {
           </div>
         </div>
       </div>
+
+      {selectedItem && (
+        <PriceModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onSave={async (storeId, storeName, price) => {
+            await updateStorePrice(selectedItem.id, selectedItem.variantId, storeId, storeName, price)
+          }}
+          onLoadHistory={fetchHistory}
+        />
+      )}
     </main>
   )
 }

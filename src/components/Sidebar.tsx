@@ -76,13 +76,6 @@ const AddItemIcon = () => (
   </svg>
 )
 
-const PriceTagIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
-    <line x1="7" y1="7" x2="7.01" y2="7" />
-  </svg>
-)
-
 const HistoryIcon = () => (
   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="12 8 12 12 14 14" />
@@ -157,7 +150,6 @@ export function Sidebar({ isAdmin, userDisplayName, userRole, onLogout, onPageCh
         { type: 'section', label: 'Operations' },
         { type: 'link', path: ROUTES.INVENTORY,        label: 'Inventory',        icon: InventoryIcon },
         { type: 'link', path: ROUTES.TRANSFER,         label: 'Stock Levels',     icon: TransferIcon },
-        { type: 'link', path: ROUTES.PRICE_LIST,       label: 'Price List',       icon: PriceTagIcon },
         { type: 'link', path: ROUTES.RECEIPTS,         label: 'Receipts',         icon: ReceiptsIcon },
         { type: 'section', label: 'Items' },
         { type: 'link', path: ROUTES.ADD_ITEM,         label: 'Add Item',         icon: AddItemIcon },

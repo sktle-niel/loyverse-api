@@ -10,7 +10,6 @@ import { OperatorQueue } from '../pages/OperatorQueue'
 import { Transfer } from '../pages/Transfer'
 import { TransferHistory } from '../pages/TransferHistory'
 import { PendingRequests } from '../pages/PendingRequests'
-import { PriceList } from '../pages/PriceList'
 import { AddItem } from '../pages/AddItem'
 import { DeleteItem } from '../pages/DeleteItem'
 import { Receipts } from '../pages/Receipts'
@@ -86,7 +85,6 @@ export function MainLayout() {
           <Route path={ROUTES.QUEUE} element={!isAdmin ? <OperatorQueue /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.PENDING} element={!isAdmin ? <PendingRequests /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.TRANSFER} element={!isAdmin ? <Transfer /> : <Navigate to={ROUTES.APPROVALS} replace />} />
-          <Route path={ROUTES.PRICE_LIST} element={!isAdmin ? <PriceList /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.ADD_ITEM} element={!isAdmin ? <AddItem /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.DELETE_ITEM} element={!isAdmin ? <DeleteItem /> : <Navigate to={ROUTES.APPROVALS} replace />} />
           <Route path={ROUTES.RECEIPTS} element={!isAdmin ? <Receipts /> : <Navigate to={ROUTES.APPROVALS} replace />} />

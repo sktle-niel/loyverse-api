@@ -370,7 +370,7 @@ export function AddItem() {
                 type="button"
                 className="btn btn-ghost btn-sm text-base-content/60 hover:text-base-content border border-base-content/10"
                 disabled={saving}
-                onClick={() => navigate(ROUTES.PRICE_LIST)}
+                onClick={() => navigate(ROUTES.INVENTORY)}
               >
                 Cancel
               </button>
