@@ -3,7 +3,7 @@ import { apiFetchJson, apiPostJson } from '../api/client'
 import type { StockLevelProduct, StockLevelsResponse, StoreInfo, SyncProgress } from '../api/types'
 
 const BACKGROUND_POLL_MS = 5_000
-const AUTO_REFRESH_MS    = 20 * 1000 // 20s — polls backend every 20s to pick up delta sync changes
+const AUTO_REFRESH_MS    = 10 * 1000 // 10s — polls backend to pick up webhook/delta stock changes quickly
 const PAUSED_STORAGE_KEY    = 'sktle_stocks_paused'
 const RESETTING_STORAGE_KEY = 'sktle_stocks_resetting'
 
