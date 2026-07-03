@@ -28,7 +28,7 @@ const PRICE_RE = /^\d+(\.\d{1,2})?$/
 
 type StoreRow = { available: boolean; price: string }
 
-/** An item create attempt in this session — shown in the "Recently added" panel. */
+/** An item create attempt shown in the "Recently added" panel. */
 type RecentItem = {
   id: string
   name: string
@@ -36,6 +36,33 @@ type RecentItem = {
   sku?: string
   error?: string
   at: number
+}
+
+const RECENT_KEY = 'twz.recentItems.v1'
+const RECENT_MAX = 7 // keep only the 7 most recent; older ones drop off (FIFO)
+
+/** Load persisted recently-added items (newest first). Missing/corrupt storage → empty. */
+function readRecentItems(): RecentItem[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    if (!raw) return []
+    const arr = JSON.parse(raw) as unknown
+    if (!Array.isArray(arr)) return []
+    return (arr as RecentItem[])
+      .filter((r) => r && typeof r.name === 'string' && typeof r.at === 'number')
+      .slice(0, RECENT_MAX)
+  } catch {
+    return []
+  }
+}
+
+/** Persist the recently-added list, capped at the 7 most recent. */
+function writeRecentItems(items: RecentItem[]): void {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, RECENT_MAX)))
+  } catch {
+    /* storage full/unavailable — non-fatal */
+  }
 }
 
 export function AddItem() {
@@ -57,7 +84,7 @@ export function AddItem() {
   const [color, setColor] = useState('GREY')
   const [shape, setShape] = useState('SQUARE')
   const [saving, setSaving] = useState(false)
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([])
+  const [recentItems, setRecentItems] = useState<RecentItem[]>(() => readRecentItems())
 
   // Seed store rows once stores load (available by default, like Loyverse).
   useEffect(() => {
@@ -68,6 +95,12 @@ export function AddItem() {
       return next
     })
   }, [stores])
+
+  // Persist successful adds so the "Recently added" list survives navigation/reloads.
+  // Failed attempts stay session-only — they're transient errors already surfaced by a toast.
+  useEffect(() => {
+    writeRecentItems(recentItems.filter((r) => r.status === 'success'))
+  }, [recentItems])
 
   const allChecked = useMemo(
     () => stores.length > 0 && stores.every((s) => storeRows[s.id]?.available),
@@ -95,7 +128,7 @@ export function AddItem() {
       [
         { ...entry, id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, at: Date.now() },
         ...prev,
-      ].slice(0, 20),
+      ].slice(0, RECENT_MAX),
     )
   }
 
@@ -407,7 +440,7 @@ export function AddItem() {
 
               {successCount > 0 && (
                 <p className="text-[11px] text-base-content/40 mb-3">
-                  {successCount} item{successCount === 1 ? '' : 's'} added this session
+                  {successCount} item{successCount === 1 ? '' : 's'} added recently
                 </p>
               )}
 
