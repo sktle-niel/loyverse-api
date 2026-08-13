@@ -25,8 +25,9 @@ const SHAPES: { value: string; radius: string }[] = [
 ]
 
 const PRICE_RE = /^\d+(\.\d{1,2})?$/
+const QTY_RE = /^\d+$/
 
-type StoreRow = { available: boolean; price: string }
+type StoreRow = { available: boolean; price: string; qty: string }
 
 /** An item create attempt shown in the "Recently added" panel. */
 type RecentItem = {
@@ -91,7 +92,7 @@ export function AddItem() {
     if (stores.length === 0) return
     setStoreRows((prev) => {
       const next = { ...prev }
-      for (const s of stores) if (!next[s.id]) next[s.id] = { available: true, price: '' }
+      for (const s of stores) if (!next[s.id]) next[s.id] = { available: true, price: '', qty: '' }
       return next
     })
   }, [stores])
@@ -107,11 +108,17 @@ export function AddItem() {
     [stores, storeRows],
   )
 
+  // Any branch with an initial quantity > 0 forces stock tracking on (mirrors the backend rule).
+  const hasInitialQty = useMemo(
+    () => stores.some((s) => QTY_RE.test((storeRows[s.id]?.qty ?? '').trim()) && Number(storeRows[s.id].qty) > 0),
+    [stores, storeRows],
+  )
+
   const toggleAllStores = (checked: boolean) => {
     setAllStores(checked)
     setStoreRows((prev) => {
       const next = { ...prev }
-      for (const s of stores) next[s.id] = { ...(next[s.id] ?? { price: '' }), available: checked }
+      for (const s of stores) next[s.id] = { ...(next[s.id] ?? { price: '', qty: '' }), available: checked }
       return next
     })
   }
@@ -119,8 +126,18 @@ export function AddItem() {
   const setStoreField = (storeId: string, field: keyof StoreRow, value: boolean | string) => {
     setStoreRows((prev) => ({
       ...prev,
-      [storeId]: { ...(prev[storeId] ?? { available: true, price: '' }), [field]: value },
+      [storeId]: { ...(prev[storeId] ?? { available: true, price: '', qty: '' }), [field]: value },
     }))
+  }
+
+  // Step a branch's initial quantity up or down (never below 0). Non-numeric text resets to 0.
+  const stepQty = (storeId: string, delta: number) => {
+    setStoreRows((prev) => {
+      const row = prev[storeId] ?? { available: true, price: '', qty: '' }
+      const current = QTY_RE.test(row.qty.trim()) ? Number(row.qty.trim()) : 0
+      const next = Math.max(0, current + delta)
+      return { ...prev, [storeId]: { ...row, qty: String(next) } }
+    })
   }
 
   const pushRecent = (entry: Omit<RecentItem, 'id' | 'at'>) => {
@@ -146,7 +163,7 @@ export function AddItem() {
     setAllStores(true)
     setStoreRows(() => {
       const next: Record<string, StoreRow> = {}
-      for (const s of stores) next[s.id] = { available: true, price: '' }
+      for (const s of stores) next[s.id] = { available: true, price: '', qty: '' }
       return next
     })
     setColor('GREY')
@@ -172,6 +189,11 @@ export function AddItem() {
         showToast({ message: `Price for ${s.name} must be a valid amount.`, durationMs: 4000, variant: 'error' })
         return
       }
+      const q = storeRows[s.id]?.qty ?? ''
+      if (q.trim() && !QTY_RE.test(q.trim())) {
+        showToast({ message: `Quantity for ${s.name} must be a whole number (e.g. 12).`, durationMs: 4000, variant: 'error' })
+        return
+      }
     }
 
     const itemName = name.trim()
@@ -191,6 +213,7 @@ export function AddItem() {
         storeId: s.id,
         available: storeRows[s.id]?.available ?? true,
         price: storeRows[s.id]?.price?.trim() ? Number(storeRows[s.id].price) : null,
+        quantity: storeRows[s.id]?.qty?.trim() ? Number(storeRows[s.id].qty) : null,
       })),
     }
 
@@ -198,12 +221,20 @@ export function AddItem() {
     try {
       const res = await createItem(body)
       pushRecent({ name: res.itemName || itemName, status: 'success', sku: res.sku })
-      showToast({
-        message: res.sku
-          ? `"${res.itemName}" created in Loyverse · SKU ${res.sku}`
-          : `"${res.itemName}" created in Loyverse.`,
-        durationMs: 6000,
-      })
+      let message = res.sku
+        ? `"${res.itemName}" created in Loyverse · SKU ${res.sku}`
+        : `"${res.itemName}" created in Loyverse.`
+      if (res.initialStock && res.initialStock.applied > 0) {
+        message += ` · initial stock set in ${res.initialStock.applied} branch${res.initialStock.applied === 1 ? '' : 'es'}`
+      }
+      showToast({ message, durationMs: 6000 })
+      if (res.initialStock?.error) {
+        showToast({
+          message: `Item created, but the initial stock was not set: ${res.initialStock.error}`,
+          durationMs: 8000,
+          variant: 'error',
+        })
+      }
       // Stay on the Add item page and clear the form so the operator can add another right away.
       resetForm()
     } catch (e) {
@@ -293,10 +324,21 @@ export function AddItem() {
             {/* Inventory */}
             <section className={cardClass}>
               <h2 className="text-sm font-semibold text-base-content mb-4">Inventory</h2>
-              <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <label className={`flex items-center justify-between gap-3 ${hasInitialQty ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 <span className="text-sm text-base-content/80">Track stock</span>
-                <input type="checkbox" className="toggle toggle-primary toggle-sm" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary toggle-sm"
+                  checked={trackStock || hasInitialQty}
+                  disabled={hasInitialQty}
+                  onChange={(e) => setTrackStock(e.target.checked)}
+                />
               </label>
+              {hasInitialQty && (
+                <p className="text-[11px] text-base-content/35 mt-2">
+                  Turned on automatically because an initial quantity is set below.
+                </p>
+              )}
             </section>
 
             {/* Stores */}
@@ -326,14 +368,17 @@ export function AddItem() {
                   </button>
                 </div>
               ) : (
-                <div className="rounded-lg border border-base-content/8 divide-y divide-base-content/6 overflow-hidden">
-                  <div className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2 bg-base-content/3 text-[11px] font-medium text-base-content/45 uppercase tracking-wide">
-                    <span>Avail.</span><span>Store</span><span className="text-right">Price</span>
+                <>
+                {/* overflow-x-auto + min-w: on phone widths the 4-column grid scrolls sideways instead of clipping the Qty stepper */}
+                <div className="overflow-x-auto">
+                <div className="rounded-lg border border-base-content/8 divide-y divide-base-content/6 overflow-hidden min-w-[26rem]">
+                  <div className="grid grid-cols-[auto_1fr_7rem_6.5rem] items-center gap-3 px-3 py-2 bg-base-content/3 text-[11px] font-medium text-base-content/45 uppercase tracking-wide">
+                    <span>Avail.</span><span>Store</span><span className="text-right">Price</span><span className="text-right">Qty</span>
                   </div>
                   {stores.map((s) => {
-                    const row = storeRows[s.id] ?? { available: true, price: '' }
+                    const row = storeRows[s.id] ?? { available: true, price: '', qty: '' }
                     return (
-                      <div key={s.id} className="grid grid-cols-[auto_1fr_8rem] items-center gap-3 px-3 py-2.5">
+                      <div key={s.id} className="grid grid-cols-[auto_1fr_7rem_6.5rem] items-center gap-3 px-3 py-2.5">
                         <input
                           type="checkbox"
                           className="checkbox checkbox-sm checkbox-primary"
@@ -348,10 +393,49 @@ export function AddItem() {
                           value={row.price}
                           onChange={(e) => setStoreField(s.id, 'price', e.target.value)}
                         />
+                        <div className="flex items-stretch rounded-md border border-base-content/12 bg-base-100 overflow-hidden focus-within:border-primary/60 transition-colors">
+                          <input
+                            inputMode="numeric"
+                            className="w-full min-w-0 px-2 py-1.5 text-sm text-right tabular bg-transparent outline-none placeholder:text-base-content/30"
+                            placeholder="0"
+                            value={row.qty}
+                            onChange={(e) => setStoreField(s.id, 'qty', e.target.value)}
+                            aria-label={`Initial quantity for ${s.name}`}
+                          />
+                          <div className="flex flex-col border-l border-base-content/12 shrink-0 w-6">
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              onClick={() => stepQty(s.id, 1)}
+                              className="flex-1 flex items-center justify-center text-base-content/45 hover:text-base-content hover:bg-base-content/6 transition-colors"
+                              aria-label={`Increase quantity for ${s.name}`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="18 15 12 9 6 15" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              tabIndex={-1}
+                              onClick={() => stepQty(s.id, -1)}
+                              className="flex-1 flex items-center justify-center text-base-content/45 hover:text-base-content hover:bg-base-content/6 border-t border-base-content/12 transition-colors"
+                              aria-label={`Decrease quantity for ${s.name}`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )
                   })}
                 </div>
+                </div>
+                <p className="text-[11px] text-base-content/35 mt-2">
+                  Qty is the branch's starting stock, applied right after the item is saved. Leave blank (or 0) to skip.
+                </p>
+                </>
               )}
             </section>
 
