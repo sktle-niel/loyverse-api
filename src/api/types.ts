@@ -167,6 +167,8 @@ export interface CreateItemStoreInput {
   storeId: string
   available: boolean
   price: number | null
+  /** Initial stock for this branch, set right after the item is created; null/0 = none */
+  quantity?: number | null
 }
 
 export interface CreateItemBody {
@@ -190,6 +192,12 @@ export interface CreateItemResponse {
   itemName: string
   /** The SKU Loyverse actually assigned to the new item. */
   sku?: string
+  /** Result of the per-branch initial-stock write (present when quantities were entered). */
+  initialStock?: {
+    requested: number
+    applied: number
+    error?: string
+  }
   message: string
 }
 
