@@ -424,7 +424,12 @@ export interface StockChangeRequest {
   sku: string
   storeId: string
   storeName: string
+  /** Units the operator asked to add. Stable across the lifecycle — this is the "qty" to display. */
   changeAmount: number
+  /**
+   * Change amount while pending/rejected/cancelled, but rewritten to the ABSOLUTE stock level
+   * once approved. Never render this as the requested qty — use `changeAmount`.
+   */
   newStock: number
   requestedBy: string
   status: StockRequestStatus
