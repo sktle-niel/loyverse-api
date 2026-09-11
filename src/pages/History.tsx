@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useStores } from '../hooks/useStores'
+import { requestedQty } from '../utils/stockRequests'
 
 type Tab = 'all' | 'approved' | 'rejected' | 'cancelled'
 
@@ -295,7 +296,7 @@ export function History() {
                   <div className="text-xs text-base-content/55 space-y-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <span>{req.storeName || storeNameById.get(req.storeId) || req.storeId}</span>
-                      <span className="tabular font-medium text-base-content/70">+{req.changeAmount}</span>
+                      <span className="tabular font-medium text-base-content/70">+{requestedQty(req)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span>{req.requestedBy}</span>
@@ -344,7 +345,7 @@ export function History() {
                       <td className="py-3.5 px-4 text-base-content/60">
                         {req.storeName || storeNameById.get(req.storeId) || req.storeId}
                       </td>
-                      <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{req.changeAmount}</td>
+                      <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{requestedQty(req)}</td>
                       <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
                       <td className="py-3.5 px-4">
                         <span className={STATUS_CLASSES[req.status] ?? STATUS_CLASSES.pending}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMyStockRequests } from '../hooks/useMyStockRequests'
 import { useTransferRequests } from '../hooks/useTransferRequests'
+import { requestedQty } from '../utils/stockRequests'
 import { useStores } from '../hooks/useStores'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -197,7 +198,7 @@ export function PendingRequests() {
                       <div className="text-xs text-base-content/55 space-y-0.5">
                         <div className="flex justify-between gap-2">
                           <span>{req.storeName || storeNameById.get(req.storeId) || req.storeId}</span>
-                          <span className="tabular font-medium text-base-content/70">+{req.changeAmount}</span>
+                          <span className="tabular font-medium text-base-content/70">+{requestedQty(req)}</span>
                         </div>
                         <span className="text-base-content/40 tabular">{new Date(req.createdAt).toLocaleString()}</span>
                       </div>
@@ -231,7 +232,7 @@ export function PendingRequests() {
                         <tr key={req.id} className="border-b border-base-content/6 hover:bg-base-content/3 transition-colors duration-100 animate-row" style={{ animationDelay: `${index * 25}ms` }}>
                           <td className="py-3.5 px-4 font-medium text-base-content">{req.itemName}</td>
                           <td className="py-3.5 px-4 text-base-content/60">{req.storeName || storeNameById.get(req.storeId) || req.storeId}</td>
-                          <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{req.changeAmount}</td>
+                          <td className="py-3.5 px-4 text-base-content/60 tabular text-xs">+{requestedQty(req)}</td>
                           <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">{new Date(req.createdAt).toLocaleString()}</td>
                           <td className="py-3.5 px-4">
                             <CancelButton id={req.id} onCancel={handleCancelStock} />

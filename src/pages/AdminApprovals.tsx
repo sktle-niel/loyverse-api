@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useStockRequests } from '../hooks/useStockRequests'
 import { useTransferRequests } from '../hooks/useTransferRequests'
+import { requestedQty } from '../utils/stockRequests'
 import { useStores } from '../hooks/useStores'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -595,7 +596,7 @@ export function AdminApprovals() {
                   <div className="text-xs text-base-content/55 space-y-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <span>{req.storeName || storeNameById.get(req.storeId) || req.storeId}</span>
-                      <span className="tabular font-medium text-base-content/70">+{req.changeAmount}</span>
+                      <span className="tabular font-medium text-base-content/70">+{requestedQty(req)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span>{req.requestedBy}</span>
@@ -649,7 +650,7 @@ export function AdminApprovals() {
                         <td className="py-3.5 px-4 text-base-content/60">
                           {req.storeName || storeNameById.get(req.storeId) || req.storeId}
                         </td>
-                        <td className="py-3.5 px-4 text-base-content/60 tabular text-xs whitespace-nowrap">{req.changeAmount}</td>
+                        <td className="py-3.5 px-4 text-base-content/60 tabular text-xs whitespace-nowrap">{requestedQty(req)}</td>
                         <td className="py-3.5 px-4 text-base-content/60">{req.requestedBy}</td>
                         <td className="py-3.5 px-4 text-base-content/45 text-xs tabular whitespace-nowrap">
                           {new Date(req.createdAt).toLocaleString()}
