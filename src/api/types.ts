@@ -424,11 +424,17 @@ export interface StockChangeRequest {
   sku: string
   storeId: string
   storeName: string
-  /** Units the operator asked to add. Stable across the lifecycle — this is the "qty" to display. */
-  changeAmount: number
+  /**
+   * Units the operator asked to add. Stable across the lifecycle — this is the "qty" to display.
+   * Optional only because backends deployed before 2026-09-11 don't send it; render qty through
+   * `requestedQty()` in utils/stockRequests, which derives it when missing.
+   */
+  changeAmount?: number
+  /** Stock at the branch when the request was approved (backfilled while pending). */
+  oldStock?: number
   /**
    * Change amount while pending/rejected/cancelled, but rewritten to the ABSOLUTE stock level
-   * once approved. Never render this as the requested qty — use `changeAmount`.
+   * once approved. Never render this as the requested qty — use `requestedQty()`.
    */
   newStock: number
   requestedBy: string
